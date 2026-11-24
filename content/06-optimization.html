@@ -1,0 +1,267 @@
+<article class="module" data-module="optimization" data-title="Optimization &amp; Interview Prep" data-level="Advanced" data-blurb="Make queries fast with indexes and better patterns, then practise common interview questions.">
+<section class="topic" id="indexing" data-title="Database Indexing">
+<div class="callout scenario"><p class="callout-title">About This Guide</p><div class="callout-body"><p>This comprehensive guide covers SQL optimization techniques and common technical analyst interview questions with a focus on retail and grocery scenarios. You'll learn:</p><ul><li>Query optimization best practices</li><li>Performance tuning techniques</li><li>Real-world retail analytics scenarios</li><li>Common interview questions with detailed answers</li><li>How to think like a technical analyst</li></ul></div></div><div class="callout def"><p class="callout-title">Index</p><div class="callout-body">A database structure that improves the speed of data retrieval. Think of it like a book's index - instead of reading every page, you jump directly to the information you need.</div></div><div class="callout scenario"><p class="callout-title">Example Retail Database</p><div class="callout-body"><p>We'll use these retail tables throughout:</p></div></div><div class="table-wrap"><table><caption>sales table (5 million rows)</caption><thead><tr><th>sale_id</th><th>transaction_date</th><th>store_id</th><th>product_id</th><th>quantity</th><th>amount</th><th>customer_id</th></tr></thead><tbody><tr><td>1</td><td>2024-01-15</td><td>101</td><td>5001</td><td>2</td><td>15.98</td><td>7001</td></tr><tr><td>2</td><td>2024-01-15</td><td>102</td><td>5002</td><td>1</td><td>8.99</td><td>7002</td></tr><tr><td>3</td><td>2024-01-16</td><td>101</td><td>5003</td><td>3</td><td>24.97</td><td>7003</td></tr></tbody></table></div><div class="table-wrap"><table><caption>products table (50,000 rows)</caption><thead><tr><th>product_id</th><th>product_name</th><th>category</th><th>price</th><th>supplier_id</th></tr></thead><tbody><tr><td>5001</td><td>Milk 2L</td><td>Dairy</td><td>4.50</td><td>101</td></tr><tr><td>5002</td><td>Bread White</td><td>Bakery</td><td>3.20</td><td>102</td></tr><tr><td>5003</td><td>Apples 1kg</td><td>Produce</td><td>5.99</td><td>103</td></tr></tbody></table></div><div class="exercise"><h3>Example 1: Impact of Indexing</h3><p><strong>Scenario:</strong> Find all sales for a specific customer.</p><div class="grid-2"><div class="card bad"><h4>Without Index (Slow)</h4><pre class="sql" data-run>SELECT *
+FROM sales
+WHERE customer_id = 7001;</pre><div class="callout metric"><p class="callout-title">Performance</p><div class="callout-body">⏱️ Execution Time: <span class="bad">4.5 seconds</span><br> 📊 Rows Scanned: <span class="bad">5,000,000 rows</span><br> 🔍 Method: Full Table Scan</div></div></div><div class="card good"><h4>With Index (Fast)</h4><pre class="sql" data-run>-- Create index first
+CREATE INDEX idx_customer_id ON sales(customer_id);
+
+-- Same query, now fast!
+SELECT *
+FROM sales
+WHERE customer_id = 7001;</pre><div class="callout metric"><p class="callout-title">Performance</p><div class="callout-body">⏱️ Execution Time: <span class="good">0.02 seconds</span><br> 📊 Rows Scanned: <span class="good">12 rows</span><br> 🔍 Method: Index Seek<br> <strong>⚡ 225x FASTER!</strong></div></div></div></div></div><div class="exercise"><h3>Example 2: Composite Indexes</h3><p><strong>Scenario:</strong> Find sales by store and date range (common retail query).</p><pre class="sql" data-run>-- Inefficient: Two separate indexes
+CREATE INDEX idx_store ON sales(store_id);
+
+CREATE INDEX idx_date ON sales(transaction_date);
+
+-- Efficient: Composite index
+CREATE INDEX idx_store_date ON sales(store_id, transaction_date);</pre><div class="callout note"><p class="callout-title">Composite Index Order Matters!</p><div class="callout-body">• Index on (store_id, transaction_date) works for:<br> ✅ WHERE store_id = 101<br> ✅ WHERE store_id = 101 AND transaction_date = '2024-01-15'<br> ❌ WHERE transaction_date = '2024-01-15' (doesn't use index efficiently)<br> <br> <strong>Rule:</strong> Put the most selective column first!</div></div><div class="grid-2"><div><h4>Query Performance</h4><pre class="sql" data-run>SELECT SUM(amount)
+FROM sales
+WHERE store_id = 101 AND transaction_date BETWEEN '2024-01-01' AND '2024-01-31';</pre></div><div><h4>Performance Metrics</h4><div class="table-wrap"><table><thead><tr><th>Approach</th><th>Time</th><th>Rows Scanned</th></tr></thead><tbody><tr><td>No Index</td><td class="bad">3.2s</td><td>5,000,000</td></tr><tr><td>Separate Indexes</td><td>0.8s</td><td>250,000</td></tr><tr><td class="hl">Composite Index</td><td class="good">0.05s</td><td>3,200</td></tr></tbody></table></div></div></div></div><div class="callout tip"><p class="callout-title">When to Create Indexes</p><div class="callout-body">✅ Columns frequently used in WHERE clauses<br> ✅ Columns used in JOIN conditions<br> ✅ Columns used in ORDER BY<br> ✅ Foreign key columns<br> <br> <strong>⚠️ When NOT to Index:</strong><br> ❌ Small tables (&lt; 1000 rows)<br> ❌ Columns with low selectivity (e.g., boolean fields)<br> ❌ Tables with frequent INSERT/UPDATE/DELETE (indexes slow writes)<br> ❌ Columns rarely used in queries</div></div><div class="callout interview"><p class="callout-title">Common Interview Question</p><div class="callout-body">"How would you optimize a slow query in our sales database?"<br> <strong>Answer:</strong> "First, I'd use EXPLAIN/EXPLAIN ANALYZE to identify if it's doing a full table scan. If the query filters on specific columns like store_id or transaction_date, I'd check if appropriate indexes exist. For queries filtering on multiple columns, I'd consider composite indexes. I'd also look at query execution plans to see if indexes are actually being used."</div></div>
+</section>
+<section class="topic" id="query-optimization" data-title="Query Optimization Techniques">
+<div class="exercise"><h3>Technique 1: Use SELECT Specific Columns (Not SELECT *)</h3><div class="grid-2"><div class="card bad"><h4>Bad Practice</h4><pre class="sql" data-run>-- Returns ALL 15 columns
+SELECT *
+FROM sales
+WHERE store_id = 101;</pre><div class="callout warn"><p class="callout-title">Problems</p><div class="callout-body">• Transfers unnecessary data over network<br> • Uses more memory<br> • Slower performance<br> • Can't use covering indexes</div></div></div><div class="card good"><h4>Best Practice</h4><pre class="sql" data-run>-- Only get what you need
+SELECT sale_id, transaction_date, amount
+FROM sales
+WHERE store_id = 101;</pre><div class="callout tip"><p class="callout-title">Benefits</p><div class="callout-body">• 70% less data transferred<br> • Can use covering index<br> • Faster execution<br> • More maintainable code</div></div></div></div><div class="callout metric"><p class="callout-title">Real Impact on 100,000 rows</p><div class="callout-body">SELECT * → 450MB data, 2.1 seconds<br> SELECT 3 columns → 135MB data, 0.6 seconds<br> <strong>⚡ 3.5x FASTER!</strong></div></div></div><div class="exercise"><h3>Technique 2: Avoid Functions on Indexed Columns</h3><div class="grid-2"><div class="card bad"><h4>Index Can't Be Used</h4><pre class="sql">-- Function on indexed column prevents index use!
+SELECT *
+FROM sales
+WHERE YEAR(transaction_date) = 2024;
+
+-- Another example
+SELECT *
+FROM products
+WHERE UPPER(product_name) = 'MILK 2L';</pre><div class="callout metric"><div class="callout-body">⏱️ Time: <span class="bad">3.8 seconds</span><br> 📊 Rows Scanned: <span class="bad">5,000,000 (Full Scan)</span></div></div></div><div class="card good"><h4>Index Can Be Used</h4><pre class="sql" data-run>-- Use date range instead
+SELECT *
+FROM sales
+WHERE transaction_date &gt;= '2024-01-01'
+    AND transaction_date &lt; '2025-01-01';
+
+-- Store uppercase version or use case-insensitive collation
+SELECT *
+FROM products
+WHERE product_name = 'Milk 2L';</pre><div class="callout metric"><div class="callout-body">⏱️ Time: <span class="good">0.08 seconds</span><br> 📊 Rows Scanned: <span class="good">425,000 (Index Seek)</span></div></div></div></div></div><div class="exercise"><h3>Technique 3: Use EXISTS Instead of IN with Subqueries</h3><div class="callout scenario"><p class="callout-title">Scenario</p><div class="callout-body">Find all products that have been sold in the last month</div></div><div class="grid-2"><div class="card bad"><h4>Slower: IN with Subquery</h4><pre class="sql" data-run>SELECT product_name
+FROM products
+WHERE product_id IN (
+    SELECT DISTINCT product_id
+    FROM sales
+    WHERE transaction_date &gt;= '2024-01-01'
+);</pre><div class="callout metric"><div class="callout-body">⏱️ Time: <span class="bad">1.2 seconds</span><br> Problem: Creates large IN list</div></div></div><div class="card good"><h4>Faster: EXISTS</h4><pre class="sql" data-run>SELECT product_name
+FROM products p
+WHERE EXISTS (
+    SELECT 1
+    FROM sales s
+    WHERE s.product_id = p.product_id
+        AND s.transaction_date &gt;= '2024-01-01'
+);</pre><div class="callout metric"><div class="callout-body">⏱️ Time: <span class="good">0.3 seconds</span><br> <strong>⚡ 4x FASTER!</strong><br> Stops searching after first match</div></div></div></div><div class="callout tip"><p class="callout-title">When to Use Each</p><div class="callout-body">• <strong>EXISTS:</strong> When checking for existence (recommended for large datasets)<br> • <strong>IN:</strong> When you have a small, fixed list of values: WHERE category IN ('Dairy', 'Bakery')<br> • <strong>JOIN:</strong> When you need columns from both tables</div></div></div><div class="exercise"><h3>Technique 4: Limit Results When Possible</h3><div class="grid-2"><div class="card bad"><h4>Returns Everything</h4><pre class="sql" data-run>-- Gets ALL sales, even if you only need recent ones
+SELECT *
+FROM sales
+ORDER BY transaction_date DESC;</pre></div><div class="card good"><h4>Use LIMIT/TOP</h4><pre class="sql">-- Only get what you need
+SELECT *
+FROM sales
+ORDER BY transaction_date DESC
+LIMIT 100;
+
+-- SQL Server syntax
+SELECT TOP 100 *
+FROM sales
+ORDER BY transaction_date DESC;</pre></div></div></div><div class="callout interview"><p class="callout-title">Interview Question</p><div class="callout-body">"A dashboard query is taking 30 seconds to load. How would you optimize it?"<br> <strong>Strong Answer:</strong> "I'd start by examining the query execution plan. Common issues I'd check: 1) Is it selecting unnecessary columns (SELECT *)? 2) Are there missing indexes on filter/join columns? 3) Are functions being applied to indexed columns? 4) Can we add LIMIT if we're showing paginated results? 5) Are there implicit type conversions? I'd also check if the query can be simplified - sometimes complex CTEs can be rewritten as simpler JOINs."</div></div>
+</section>
+<section class="topic" id="joins-performance" data-title="JOIN Performance Optimization">
+<div class="exercise"><h3>Optimization 1: Join Order Matters</h3><div class="callout scenario"><p class="callout-title">Scenario</p><div class="callout-body">Get product sales data with store information<br> <strong>Table Sizes:</strong> sales (5M rows), products (50K rows), stores (500 rows)</div></div><div class="grid-2"><div class="card bad"><h4>Inefficient Join Order</h4><pre class="sql" data-run>-- Joins largest tables first
+SELECT s.sale_id, p.product_name, st.store_name
+FROM sales s
+JOIN products p ON s.product_id = p.product_id
+JOIN stores st ON s.store_id = st.store_id
+WHERE st.city = 'Sydney' AND s.transaction_date = '2024-01-15';</pre><div class="callout metric"><div class="callout-body">Problem: Joins 5M rows with 50K rows first, then filters</div></div></div><div class="card good"><h4>Filter First, Join Later</h4><pre class="sql" data-run>-- Filter before joining
+SELECT s.sale_id, p.product_name, st.store_name
+FROM sales s
+JOIN stores st ON s.store_id = st.store_id AND st.city = 'Sydney' -- Filter in JOIN
+JOIN products p ON s.product_id = p.product_id
+WHERE s.transaction_date = '2024-01-15';</pre><div class="callout metric"><div class="callout-body">Better: Reduces dataset early in execution</div></div></div></div><div class="table-wrap"><table><caption>Performance Comparison</caption><thead><tr><th>Approach</th><th>Rows Processed</th><th>Time</th></tr></thead><tbody><tr><td>Inefficient</td><td>250,000,000 intermediate</td><td class="bad">8.5s</td></tr><tr><td>Optimized</td><td>50,000 intermediate</td><td class="good">0.4s</td></tr></tbody></table></div></div><div class="exercise"><h3>Optimization 2: Use Appropriate JOIN Types</h3><div class="grid-2"><div class="card bad"><h4>Wrong JOIN Type</h4><pre class="sql" data-run>-- LEFT JOIN when INNER JOIN is appropriate
+SELECT s.sale_id, p.product_name
+FROM sales s
+LEFT JOIN products p ON s.product_id = p.product_id;</pre><div class="callout warn"><div class="callout-body">If every sale MUST have a product, use INNER JOIN</div></div></div><div class="card good"><h4>Correct JOIN Type</h4><pre class="sql" data-run>-- INNER JOIN is more efficient
+SELECT s.sale_id, p.product_name
+FROM sales s
+INNER JOIN products p ON s.product_id = p.product_id;</pre><div class="callout tip"><div class="callout-body">INNER JOIN is faster - database knows all rows must match</div></div></div></div></div><div class="exercise"><h3>Optimization 3: Avoid Joining on Calculated Fields</h3><div class="grid-2"><div class="card bad"><h4>Join on Calculation</h4><pre class="sql" data-run>SELECT *
+FROM sales s
+JOIN products p ON CAST(s.product_id AS VARCHAR) = p.product_code;</pre></div><div class="card good"><h4>Join on Indexed Columns</h4><pre class="sql">-- Ensure data types match, create computed column if needed
+ALTER TABLE products ADD product_id_int AS CAST(product_code AS INT) PERSISTED;
+
+CREATE INDEX idx_product_id_int ON products(product_id_int);
+
+SELECT *
+FROM sales s
+JOIN products p ON s.product_id = p.product_id_int;</pre></div></div></div>
+</section>
+<section class="topic" id="common-mistakes" data-title="Common SQL Mistakes to Avoid">
+<div class="exercise"><h3>Mistake 1: N+1 Query Problem</h3><div class="card bad"><h4>Bad: Multiple Queries</h4><pre class="sql">-- First query: Get all stores
+SELECT store_id, store_name
+FROM stores;
+
+-- Then for EACH store, run another query (N times!)
+SELECT SUM(amount)
+FROM sales
+WHERE store_id = 101;
+
+SELECT SUM(amount)
+FROM sales
+WHERE store_id = 102; -- ... repeat 500 times!</pre><div class="callout metric"><div class="callout-body">Result: 501 queries (1 + 500)<br> Time: <span class="bad">15 seconds</span></div></div></div><div class="card good"><h4>Good: Single Query with JOIN</h4><pre class="sql" data-run>SELECT st.store_id, st.store_name, SUM(s.amount) AS total_sales
+FROM stores st
+LEFT JOIN sales s ON st.store_id = s.store_id
+GROUP BY st.store_id, st.store_name;</pre><div class="callout metric"><div class="callout-body">Result: 1 query<br> Time: <span class="good">0.3 seconds</span><br> <strong>⚡ 50x FASTER!</strong></div></div></div></div><div class="exercise"><h3>Mistake 2: Using OR Instead of IN</h3><div class="grid-2"><div class="card bad"><h4>Inefficient</h4><pre class="sql" data-run>SELECT *
+FROM products
+WHERE category = 'Dairy' OR category = 'Bakery'
+    OR category = 'Produce' OR category = 'Meat';</pre></div><div class="card good"><h4>Efficient</h4><pre class="sql" data-run>SELECT *
+FROM products
+WHERE category IN ('Dairy', 'Bakery', 'Produce', 'Meat');</pre></div></div></div><div class="exercise"><h3>Mistake 3: Using DISTINCT to Fix Duplicates</h3><div class="card bad"><h4>Treating Symptoms, Not Cause</h4><pre class="sql" data-run>-- Using DISTINCT because of duplicate rows
+SELECT DISTINCT p.product_name, s.amount
+FROM products p
+JOIN sales s ON p.product_id = s.product_id;</pre><div class="callout warn"><div class="callout-body">Problem: DISTINCT is expensive and masks the real issue</div></div></div><div class="card good"><h4>Fix the Root Cause</h4><pre class="sql" data-run>-- Understand WHY there are duplicates
+-- Option 1: Aggregate if needed
+SELECT p.product_name, SUM(s.amount) AS total_amount
+FROM products p
+JOIN sales s ON p.product_id = s.product_id
+GROUP BY p.product_name;
+
+-- Option 2: Check for data quality issues
+-- Option 3: Use proper WHERE conditions</pre></div></div><div class="exercise"><h3>Mistake 4: Implicit Type Conversions</h3><div class="grid-2"><div class="card bad"><h4>Prevents Index Use</h4><pre class="sql" data-run>-- store_id is INT, but comparing to VARCHAR
+SELECT *
+FROM sales
+WHERE store_id = '101'; -- String!</pre><div class="callout metric"><div class="callout-body">Database converts EVERY store_id to VARCHAR<br> Index can't be used!</div></div></div><div class="card good"><h4>Matching Data Types</h4><pre class="sql" data-run>SELECT *
+FROM sales
+WHERE store_id = 101; -- Integer!</pre><div class="callout metric"><div class="callout-body">Index is used efficiently</div></div></div></div></div><div class="callout interview"><p class="callout-title">Interview Scenario</p><div class="callout-body">"We have a query that was fast last month but is now slow. What could cause this?"<br> <strong>Answer:</strong> "Several possibilities: 1) <strong>Data growth</strong> - table has grown significantly, indexes may need rebuilding or new indexes needed. 2) <strong>Statistics outdated</strong> - query optimizer uses old statistics, needs UPDATE STATISTICS. 3) <strong>Index fragmentation</strong> - indexes need rebuilding. 4) <strong>Plan cache issues</strong> - old execution plan is being reused inappropriately. 5) <strong>Hardware resources</strong> - disk I/O, memory, or CPU constraints. I'd start by checking query execution plans and table growth rates."</div></div>
+</section>
+<section class="topic" id="retail-scenarios" data-title="Real-World Retail Scenarios">
+<div class="exercise"><h3>Scenario 1: Daily Sales Report</h3><div class="callout scenario"><p class="callout-title">Business Need</p><div class="callout-body">Store managers need a daily report showing top-selling products by category</div></div><div class="card good"><h4>Optimized Query</h4><pre class="sql">WITH daily_product_sales AS (
+    SELECT
+        p.category,
+        p.product_name,
+        SUM(s.quantity) AS total_quantity,
+        SUM(s.amount) AS total_revenue,
+        RANK() OVER(PARTITION BY p.category ORDER BY SUM(s.amount) DESC) AS category_rank
+    FROM sales s
+    JOIN products p ON s.product_id = p.product_id
+    WHERE s.transaction_date = CURRENT_DATE - INTERVAL '1 day'
+        AND s.store_id = 101 -- Specific store
+    GROUP BY p.category, p.product_name
+)
+SELECT category, product_name, total_quantity, total_revenue
+FROM daily_product_sales
+WHERE category_rank &lt;= 5 -- Top 5 per category
+ORDER BY category, category_rank;</pre></div><div class="callout tip"><p class="callout-title">Key Optimizations</p><div class="callout-body">✅ Filters on transaction_date early (indexed column)<br> ✅ Uses window function to avoid multiple queries<br> ✅ CTE makes query readable and maintainable<br> ✅ WHERE clause on window function result (filters after ranking)</div></div><div class="table-wrap"><table><caption>Sample Output</caption><thead><tr><th>category</th><th>product_name</th><th>total_quantity</th><th>total_revenue</th></tr></thead><tbody><tr><td>Dairy</td><td>Milk 2L</td><td>245</td><td>1,102.50</td></tr><tr><td>Dairy</td><td>Cheese Cheddar 500g</td><td>156</td><td>936.00</td></tr><tr><td>Bakery</td><td>Bread White</td><td>423</td><td>1,353.60</td></tr><tr><td>Bakery</td><td>Croissants 6pk</td><td>178</td><td>889.22</td></tr></tbody></table></div></div><div class="exercise"><h3>Scenario 2: Inventory Reorder Alert</h3><div class="callout scenario"><p class="callout-title">Business Need</p><div class="callout-body">Identify products that are selling faster than usual and may need reordering</div></div><pre class="sql">WITH product_velocity AS (
+    SELECT product_id, -- Last 7 days average
+        AVG(CASE WHEN transaction_date &gt;= CURRENT_DATE - 7 THEN quantity END) AS recent_avg_quantity, -- Last 30 days average
+        AVG(CASE WHEN transaction_date &gt;= CURRENT_DATE - 30 THEN quantity END) AS baseline_avg_quantity
+    FROM sales
+    WHERE transaction_date &gt;= CURRENT_DATE - 30
+    GROUP BY product_id
+)
+SELECT
+    p.product_name,
+    p.category,
+    pv.recent_avg_quantity,
+    pv.baseline_avg_quantity,
+    ROUND((pv.recent_avg_quantity - pv.baseline_avg_quantity) / pv.baseline_avg_quantity * 100, 2) AS percent_change,
+    inv.current_stock
+FROM product_velocity pv
+JOIN products p ON pv.product_id = p.product_id
+JOIN inventory inv ON p.product_id = inv.product_id
+WHERE pv.recent_avg_quantity &gt; pv.baseline_avg_quantity * 1.3 -- 30% increase
+    AND inv.current_stock &lt; pv.recent_avg_quantity * 7 -- Less than week supply
+ORDER BY percent_change DESC;</pre><div class="table-wrap"><table><caption>Sample Output - Reorder Alerts</caption><thead><tr><th>product_name</th><th>category</th><th>recent_avg</th><th>baseline_avg</th><th>% change</th><th>stock</th></tr></thead><tbody><tr class="hl"><td>Hand Sanitizer</td><td>Health</td><td>45</td><td>12</td><td>+275%</td><td>150</td></tr><tr class="hl"><td>Toilet Paper 12pk</td><td>Household</td><td>67</td><td>38</td><td>+76%</td><td>280</td></tr><tr><td>Pasta 500g</td><td>Pantry</td><td>89</td><td>65</td><td>+37%</td><td>450</td></tr></tbody></table></div></div><div class="exercise"><h3>Scenario 3: Customer Segmentation</h3><div class="callout scenario"><p class="callout-title">Business Need</p><div class="callout-body">Identify VIP customers for targeted marketing</div></div><pre class="sql">WITH customer_metrics AS (
+    SELECT
+        customer_id,
+        COUNT(DISTINCT transaction_date) AS visit_frequency,
+        SUM(amount) AS total_spent,
+        AVG(amount) AS avg_transaction_value,
+        MAX(transaction_date) AS last_visit,
+        DATEDIFF(CURRENT_DATE, MAX(transaction_date)) AS days_since_visit
+    FROM sales
+    WHERE transaction_date &gt;= CURRENT_DATE - INTERVAL '90 days'
+    GROUP BY customer_id
+)
+SELECT
+    c.customer_id,
+    c.customer_name,
+    cm.visit_frequency,
+    cm.total_spent,
+    cm.avg_transaction_value,
+    cm.days_since_visit,
+    CASE
+        WHEN cm.total_spent &gt; 1000 AND cm.visit_frequency &gt; 10 THEN 'VIP'
+        WHEN cm.total_spent &gt; 500 OR cm.visit_frequency &gt; 5 THEN 'Regular'
+        WHEN cm.days_since_visit &gt; 30 THEN 'At Risk'
+        ELSE 'Casual'
+    END AS customer_segment
+FROM customer_metrics cm
+JOIN customers c ON cm.customer_id = c.customer_id
+ORDER BY cm.total_spent DESC;</pre></div><div class="callout interview"><p class="callout-title">Interview Question</p><div class="callout-body">"How would you analyze which products are frequently bought together?"<br> <strong>Answer:</strong> "I'd use a market basket analysis approach. First, I'd identify transactions with multiple items using a self-join on the sales table grouped by transaction_id. Then calculate support (how often items appear together), confidence (if A is bought, probability of B), and lift (how much more likely B is bought when A is bought vs. randomly). The query would look something like: find all transaction pairs, count co-occurrences, and rank by lift. This helps with product placement and cross-selling strategies."</div></div>
+</section>
+<section class="topic" id="interview-questions" data-title="Technical Analyst Interview Questions">
+<div class="exercise"><h3>Question 1: Explain ACID Properties</h3><details class="solution"><summary>Show Answer</summary><div><strong>Answer:</strong><div class="callout note"><p class="callout-title">A - Atomicity</p><div class="callout-body">Transaction is all-or-nothing. Either all operations succeed or all fail.<br> <em>Example:</em> Transferring money between accounts - both debit and credit must happen, or neither.<br><br> <strong>C - Consistency:</strong> Database moves from one valid state to another. All rules/constraints are maintained.<br> <em>Example:</em> Stock levels can't go negative; foreign keys must reference existing records.<br><br> <strong>I - Isolation:</strong> Concurrent transactions don't interfere with each other.<br> <em>Example:</em> Two customers buying the last item simultaneously - only one succeeds.<br><br> <strong>D - Durability:</strong> Once committed, changes persist even after system failure.<br> <em>Example:</em> If payment is confirmed, it stays confirmed even if server crashes.</div></div><div class="callout interview"><p class="callout-title">Retail Context</p><div class="callout-body">"In our sales system, when a customer completes checkout, we need atomicity to ensure inventory is decremented AND payment is recorded together. Isolation prevents two customers from buying the last item. Durability ensures sales data isn't lost if systems crash during peak hours."</div></div></div></details></div><div class="exercise"><h3>Question 2: Difference Between WHERE and HAVING</h3><details class="solution"><summary>Show Answer</summary><div><div class="grid-2"><div><h4>WHERE Clause</h4><ul><li>Filters BEFORE grouping</li><li>Works on individual rows</li><li>Cannot use aggregate functions</li><li>Executes first</li></ul><pre class="sql">SELECT category, SUM(amount)
+FROM sales
+WHERE transaction_date = '2024-01-15'
+GROUP BY category;</pre></div><div><h4>HAVING Clause</h4><ul><li>Filters AFTER grouping</li><li>Works on groups</li><li>Can use aggregate functions</li><li>Executes after GROUP BY</li></ul><pre class="sql">SELECT category, SUM(amount)
+FROM sales
+GROUP BY category
+HAVING SUM(amount) &gt; 1000;</pre></div></div><div class="callout tip"><p class="callout-title">Combined Example</p><div class="callout-body"><pre class="sql">SELECT category, SUM(amount) AS total
+FROM sales
+WHERE transaction_date &gt;= '2024-01-01' -- Filter rows first
+GROUP BY category
+HAVING SUM(amount) &gt; 5000; -- Filter groups second</pre></div></div></div></details></div><div class="exercise"><h3>Question 3: What is Normalization? When Would You Denormalize?</h3><details class="solution"><summary>Show Answer</summary><div><strong>Normalization:</strong> Process of organizing data to reduce redundancy and improve data integrity.<div class="callout note"><p class="callout-title">Normal Forms</p><div class="callout-body"><strong>1NF:</strong> Atomic values (no arrays/lists in cells), unique column names<br> <strong>2NF:</strong> 1NF + no partial dependencies (all columns depend on entire primary key)<br> <strong>3NF:</strong> 2NF + no transitive dependencies (non-key columns don't depend on other non-key columns)</div></div><div class="grid-2"><div class="card bad"><h4>Denormalized (Redundant)</h4><div class="table-wrap"><table><caption>sales_flat</caption><thead><tr><th>sale_id</th><th>product_name</th><th>category</th><th>price</th></tr></thead><tbody><tr><td>1</td><td>Milk 2L</td><td>Dairy</td><td>4.50</td></tr><tr><td>2</td><td>Milk 2L</td><td>Dairy</td><td>4.50</td></tr><tr><td>3</td><td>Milk 2L</td><td>Dairy</td><td>4.50</td></tr></tbody></table></div><p>Problem: Product info repeated millions of times!</p></div><div class="card good"><h4>Normalized</h4><div class="table-wrap"><table><caption>sales</caption><thead><tr><th>sale_id</th><th>product_id</th></tr></thead><tbody><tr><td>1</td><td>5001</td></tr><tr><td>2</td><td>5001</td></tr><tr><td>3</td><td>5001</td></tr></tbody></table></div><div class="table-wrap"><table><caption>products</caption><thead><tr><th>product_id</th><th>name</th><th>category</th><th>price</th></tr></thead><tbody><tr><td>5001</td><td>Milk 2L</td><td>Dairy</td><td>4.50</td></tr></tbody></table></div><p>Benefit: Product info stored once!</p></div></div><div class="callout warn"><p class="callout-title">When to Denormalize</p><div class="callout-body">✅ Read-heavy reporting systems (data warehouses)<br> ✅ Frequently joined tables causing performance issues<br> ✅ Calculated fields used constantly<br> ✅ Historical snapshots needed<br> <br> <em>Example:</em> "We might denormalize for a sales dashboard that shows product details - joining sales (5M rows) with products (50K rows) thousands of times per day is expensive. A materialized view or denormalized reporting table updated nightly could be faster."</div></div></div></details></div><div class="exercise"><h3>Question 4: Explain Different Types of Indexes</h3><details class="solution"><summary>Show Answer</summary><div><div class="table-wrap"><table><thead><tr><th>Index Type</th><th>Description</th><th>When to Use</th><th>Example</th></tr></thead><tbody><tr><td><strong>Clustered</strong></td><td>Physically orders data on disk. Only ONE per table.</td><td>Primary key, most frequently accessed column</td><td>CREATE CLUSTERED INDEX ON sales(sale_id)</td></tr><tr><td><strong>Non-Clustered</strong></td><td>Separate structure pointing to data. Multiple per table.</td><td>Frequently queried columns, foreign keys</td><td>CREATE INDEX ON sales(customer_id)</td></tr><tr><td><strong>Composite</strong></td><td>Index on multiple columns</td><td>Queries filtering on multiple columns together</td><td>CREATE INDEX ON sales(store_id, transaction_date)</td></tr><tr><td><strong>Unique</strong></td><td>Ensures no duplicate values</td><td>Email addresses, product codes</td><td>CREATE UNIQUE INDEX ON customers(email)</td></tr><tr><td><strong>Covering</strong></td><td>Includes all columns needed by query</td><td>Frequently run queries that select specific columns</td><td>CREATE INDEX ON sales(customer_id) INCLUDE (amount, date)</td></tr></tbody></table></div><div class="callout interview"><p class="callout-title">Strong Answer</p><div class="callout-body">"For a retailer's sales data, I'd use a clustered index on sale_id (primary key), non-clustered indexes on customer_id and product_id (foreign keys for joins), and a composite index on (store_id, transaction_date) since we frequently filter by store and date range for reporting."</div></div></div></details></div><div class="exercise"><h3>Question 5: How Would You Handle Slowly Changing Dimensions?</h3><details class="solution"><summary>Show Answer</summary><div><strong>Context:</strong> Product prices change over time. How do you track historical prices for accurate reporting?<div class="callout note"><p class="callout-title">Type 1 (Overwrite)</p><div class="callout-body"><pre class="sql" data-run>-- Simple update, no history
+UPDATE products SET price = 5.99
+WHERE product_id = 5001;</pre><p>❌ Loses history. Can't answer "What was revenue in 2023 with old prices?"</p></div></div><div class="callout tip"><p class="callout-title">Type 2 (Add New Row) - RECOMMENDED for Retail</p><div class="callout-body"><div class="table-wrap"><table><caption>products_history</caption><thead><tr><th>product_key</th><th>product_id</th><th>price</th><th>valid_from</th><th>valid_to</th><th>is_current</th></tr></thead><tbody><tr><td>1</td><td>5001</td><td>4.50</td><td>2023-01-01</td><td>2024-06-30</td><td>0</td></tr><tr class="hl"><td>2</td><td>5001</td><td>5.99</td><td>2024-07-01</td><td>9999-12-31</td><td>1</td></tr></tbody></table></div><pre class="sql" data-run>-- Query historical price at any point in time
+SELECT
+    s.sale_id,
+    s.quantity,
+    p.price,
+    s.quantity * p.price AS revenue_at_that_time
+FROM sales s
+JOIN products_history p ON s.product_id = p.product_id AND s.transaction_date BETWEEN p.valid_from AND p.valid_to;</pre></div></div><div class="callout interview"><p class="callout-title">Sample Answer</p><div class="callout-body">"For product prices, I'd use Type 2 SCD because we need accurate historical revenue calculations. When a price changes, we'd close the old record (set valid_to date) and insert a new record with the new price and valid_from date. This lets us report 'What was actual revenue in Q1 2024 with prices at that time?' which is critical for year-over-year comparisons and trend analysis."</div></div></div></details></div><div class="exercise"><h3>Question 6: SQL Scenario - Find Second Highest Salary</h3><details class="solution"><summary>Show Answer</summary><div><strong>Multiple Approaches:</strong> <pre class="sql" data-run>-- Approach 1: Using LIMIT with OFFSET
+SELECT DISTINCT salary
+FROM employees
+ORDER BY salary DESC
+LIMIT 1 OFFSET 1;
+
+-- Approach 2: Using Subquery
+SELECT MAX(salary) AS second_highest
+FROM employees
+WHERE salary &lt; (
+    SELECT MAX(salary)
+    FROM employees
+);
+
+-- Approach 3: Using Window Function (Most Flexible)
+WITH ranked_salaries AS (
+    SELECT salary, DENSE_RANK() OVER(ORDER BY salary DESC) AS salary_rank
+    FROM employees
+)
+SELECT salary
+FROM ranked_salaries
+WHERE salary_rank = 2;</pre><div class="callout tip"><p class="callout-title">Why DENSE_RANK vs RANK?</p><div class="callout-body">• If two people have highest salary ($100K), RANK gives both rank 1, next is rank 3<br> • DENSE_RANK gives both rank 1, next is rank 2 (what we want for "second highest")<br> • Window function approach easily extends to "Nth highest"</div></div></div></details></div><div class="exercise"><h3>Question 7: Explain Query Execution Order</h3><details class="solution"><summary>Show Answer</summary><div><pre class="sql">SELECT category, SUM(amount) AS total -- 5. Finally select columns
+FROM sales -- 1. Start with this table
+WHERE transaction_date = '2024-01-15' -- 2. Filter rows
+GROUP BY category -- 3. Group filtered rows
+HAVING SUM(amount) &gt; 1000 -- 4. Filter groups
+ORDER BY total DESC -- 6. Sort results
+LIMIT 10; -- 7. Limit output</pre><div class="callout note"><p class="callout-title">Actual Execution Order</p><div class="callout-body">1. <strong>FROM</strong> - Identify source tables<br> 2. <strong>WHERE</strong> - Filter individual rows<br> 3. <strong>GROUP BY</strong> - Create groups<br> 4. <strong>HAVING</strong> - Filter groups<br> 5. <strong>SELECT</strong> - Choose columns<br> 6. <strong>ORDER BY</strong> - Sort results<br> 7. <strong>LIMIT</strong> - Restrict rows returned</div></div><div class="callout warn"><p class="callout-title">Common Mistake</p><div class="callout-body">You can't use a SELECT alias in WHERE because WHERE executes before SELECT!<br> <pre class="sql">-- This FAILS ❌
+SELECT amount * quantity AS total
+FROM sales
+WHERE total &gt; 100; -- total doesn't exist yet!
+
+-- This WORKS ✅
+SELECT amount * quantity AS total
+FROM sales
+WHERE amount * quantity &gt; 100;</pre></div></div></div></details></div><div class="exercise"><h3>Question 8: Behavioral - How Do You Prioritize Tasks?</h3><details class="solution"><summary>Show Answer</summary><div><strong>Strong Answer for a Technical Analyst Role:</strong><div class="callout interview"><div class="callout-body">"I prioritize based on business impact and urgency. For example: <br><br> <strong>P0 - Critical:</strong> Production issues affecting sales (e.g., checkout system can't process transactions) - immediate attention, even after hours. <br><br> <strong>P1 - High:</strong> Daily reports not generating (e.g., store managers can't see yesterday's sales) - fix within hours. <br><br> <strong>P2 - Medium:</strong> Query optimization requests, new analytics dashboards - scheduled within sprint. <br><br> <strong>P3 - Low:</strong> Nice-to-have features, exploration work - backlog for future sprints. <br><br> I also consider dependencies - if my work blocks others, it gets higher priority. For example, if the data engineering team is waiting for me to validate a new sales data pipeline, I'd prioritize that over optimizing an existing report. I communicate priorities with stakeholders and reset expectations if urgent items come up."</div></div></div></details></div><div class="exercise"><h3>Question 9: How Would You Approach a Data Quality Issue?</h3><details class="solution"><summary>Show Answer</summary><div><strong>Systematic Approach:</strong><div class="callout note"><p class="callout-title">1. Identify &amp; Quantify</p><div class="callout-body"><pre class="sql" data-run>-- Find NULL values
+SELECT
+    COUNT(*) AS total_rows,
+    COUNT(customer_id) AS non_null_customers,
+    COUNT(*) - COUNT(customer_id) AS null_customers,
+    ROUND((COUNT(*) - COUNT(customer_id)) * 100.0 / COUNT(*), 2) AS null_percentage
+FROM sales;</pre> <strong>2. Investigate Root Cause:</strong><br> • When did it start? (trend analysis)<br> • Which source system?<br> • Specific stores/products/time periods affected?<br> <strong>3. Assess Impact:</strong><br> • How many reports affected?<br> • Which stakeholders impacted?<br> • Financial impact?<br> <strong>4. Implement Fix:</strong><br> • Short-term: Data cleanup, filtering bad records<br> • Long-term: Fix source system, add validation rules<br> <strong>5. Prevent Recurrence:</strong><br> • Add data quality checks<br> • Implement monitoring/alerts<br> • Document in runbook</div></div><div class="callout interview"><p class="callout-title">Retail Example</p><div class="callout-body">"If I noticed sales transactions with negative quantities, I'd first query to understand the scale - is it 10 rows or 10,000? I'd check when it started and if it's isolated to specific stores or POS systems. I'd review with the team whether negative quantities are valid (returns/refunds) or data errors. Then I'd work with the source system team to fix the root cause while implementing validation rules to flag future occurrences. I'd also add automated tests to catch this in our data pipeline before it reaches production reports."</div></div></div></details></div><div class="exercise"><h3>Question 10: Explain a Complex Analysis You've Done</h3><details class="solution"><summary>Show Answer</summary><div><div class="callout interview"><p class="callout-title">STAR Method Answer Template</p><div class="callout-body"><strong>Situation:</strong> "In my previous role, our sales dashboard showed overall revenue was up 5%, but regional managers reported declining foot traffic."<br><br> <strong>Task:</strong> "I needed to analyze whether the revenue increase was sustainable or driven by one-time factors."<br><br> <strong>Action:</strong> "I conducted a multi-dimensional analysis:<ul><li>Segmented revenue by product category, finding most growth was in a single high-margin category due to a promotional event</li><li>Analyzed customer cohorts - found we were losing regular customers but gaining one-time buyers</li><li>Created a customer lifetime value model showing the new customers had 40% lower repeat purchase rates</li><li>Used SQL window functions to calculate rolling 90-day trends, revealing the underlying decline</li></ul>" <strong>Result:</strong> "Presented findings to leadership showing while revenue was up short-term, customer retention metrics indicated trouble ahead. This led to a strategy shift focusing on customer loyalty programs. Six months later, repeat customer rate improved by 15%."<br><br> <strong>Key Skills Demonstrated:</strong><ul><li>✅ SQL proficiency (window functions, cohort analysis)</li><li>✅ Critical thinking (questioned surface-level metric)</li><li>✅ Business impact (actionable insights)</li><li>✅ Communication (presented to leadership)</li></ul></div></div></div></details></div><div class="callout scenario"><p class="callout-title">Final Interview Tips for Technical Analyst Roles</p><div class="callout-body"><ul><li><strong>Know the business:</strong> Understand the company's customers, products, and how it uses data to make decisions</li><li><strong>Retail context:</strong> Frame answers with retail examples (inventory, promotions, customer segments)</li><li><strong>Be practical:</strong> Show you understand trade-offs (normalized vs. denormalized, real-time vs. batch)</li><li><strong>Ask questions:</strong> About data stack, team structure, current analytics challenges</li><li><strong>Show curiosity:</strong> "How does the team use data to optimize the supply chain?" "What's the biggest data challenge facing the team?"</li><li><strong>Be collaborative:</strong> Emphasize working with business stakeholders, not just technical skills</li></ul></div></div>
+</section>
+</article>

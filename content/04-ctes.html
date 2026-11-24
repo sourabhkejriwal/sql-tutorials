@@ -1,0 +1,216 @@
+<article class="module" data-module="ctes" data-title="Common Table Expressions" data-level="Intermediate" data-blurb="Break complex queries into named, readable steps with the WITH clause.">
+<section class="topic" id="intro" data-title="What is a Common Table Expression?">
+<div class="callout def"><p class="callout-title">CTE (Common Table Expression)</p><div class="callout-body">A temporary named result set that exists only during the execution of a query. Think of it as giving a meaningful name to a subquery, making your SQL easier to read and maintain.</div></div><div class="card"><h3>Basic Syntax</h3><pre class="sql">WITH cte_name AS (
+    -- Your SELECT statement here
+    SELECT column1, column2
+    FROM table_name
+    WHERE condition
+)
+-- Main query that uses the CTE
+SELECT *
+FROM cte_name;</pre></div><div class="card"><h3>Why Use CTEs?</h3><ul><li><strong>Readability:</strong> Break complex queries into logical, named steps</li><li><strong>Reusability:</strong> Reference the same CTE multiple times without rewriting</li><li><strong>Maintainability:</strong> Easier to debug and modify</li><li><strong>Temporary:</strong> Not stored in database schema, cleaned up after query execution</li><li><strong>Recursion:</strong> The standard way to perform recursive queries</li></ul></div><div class="callout note"><p class="callout-title">When to Choose a CTE</p><div class="callout-body"><p><strong>Use CTEs when:</strong></p><ul><li>Your query involves multiple steps or intermediate calculations</li><li>You need to work with hierarchical or tree-structured data</li><li>The same logic needs to be applied in multiple places within a single query</li><li>You want to improve readability instead of nested subqueries</li></ul></div></div><div class="grid-2"><div class="card"><h3>Without CTE (Nested Subquery)</h3><pre class="sql" data-run>SELECT c.name, COUNT(sub.id)
+FROM country AS c
+INNER JOIN (
+    SELECT country_id, id
+    FROM match
+    WHERE (home_goal + away_goal) &gt;= 10
+) AS sub
+    ON c.id = sub.country_id
+GROUP BY c.name;</pre><p>Hard to read, subquery buried in JOIN</p></div><div class="card"><h3>With CTE (Clean &amp; Clear)</h3><pre class="sql" data-run>WITH high_scoring AS (
+    SELECT country_id, id
+    FROM match
+    WHERE (home_goal + away_goal) &gt;= 10
+)
+SELECT c.name, COUNT(h.id)
+FROM country AS c
+INNER JOIN high_scoring AS h
+    ON c.id = h.country_id
+GROUP BY c.name;</pre><p>Clear intent, easy to understand!</p></div></div>
+</section>
+<section class="topic" id="basic-cte" data-title="Basic CTE Practice">
+<div class="exercise"><h3>Question 1: Convert Subquery to CTE</h3><p><strong>Scenario:</strong> You have a query that finds countries with high-scoring matches (10+ total goals). Let's convert it from a nested subquery to a CTE!</p><div class="sample"><h4>Sample Tables:</h4><div class="sample"><div class="table-wrap"><table><caption>match table (sample rows)</caption><thead><tr><th>id</th><th>country_id</th><th>home_goal</th><th>away_goal</th><th>total</th></tr></thead><tbody><tr><td>1</td><td>1</td><td>5</td><td>3</td><td>8</td></tr><tr><td>2</td><td>1</td><td>6</td><td>4</td><td>10</td></tr><tr><td>3</td><td>2</td><td>7</td><td>5</td><td>12</td></tr><tr><td>4</td><td>2</td><td>2</td><td>1</td><td>3</td></tr></tbody></table></div><div class="table-wrap"><table><caption>league table</caption><thead><tr><th>id</th><th>name</th></tr></thead><tbody><tr><td>1</td><td>Premier League</td></tr><tr><td>2</td><td>La Liga</td></tr></tbody></table></div></div></div><p><strong>Task:</strong> Rewrite this query using a CTE named <code>match_list</code>:</p><pre class="sql" data-run>SELECT c.name, COUNT(sub.id) AS matches
+FROM country AS c
+INNER JOIN (
+    SELECT country_id, id
+    FROM match
+    WHERE (home_goal + away_goal) &gt;= 10
+) AS sub
+    ON c.id = sub.country_id
+GROUP BY c.name;</pre><div class="tryit"><p class="tryit-title">Try it yourself</p><pre class="sql editor"></pre></div><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>-- Set up your CTE
+WITH match_list AS (
+    SELECT
+        country_id,
+        id
+    FROM match
+    WHERE (home_goal + away_goal) &gt;= 10)
+-- Select league and count of matches from the CTE
+SELECT
+    l.name AS league,
+    COUNT(match_list.id) AS matches
+FROM league AS l
+-- Join the CTE to the league table
+LEFT JOIN match_list ON l.id = match_list.country_id
+GROUP BY l.name;</pre><div class="callout tip"><p class="callout-title">Key Steps</p><div class="callout-body">1. Start with <code>WITH match_list AS</code><br> 2. Put the subquery logic inside parentheses<br> 3. Reference <code>match_list</code> in the main query like a table<br> 4. Much easier to read and understand!</div></div><div class="sample"><h4>Expected Output:</h4><div class="table-wrap"><table><thead><tr><th>league</th><th>matches</th></tr></thead><tbody><tr><td>Premier League</td><td>1</td></tr><tr><td>La Liga</td><td>1</td></tr></tbody></table></div></div></div></details></div><div class="exercise"><h3>Question 2: CTE with Calculations</h3><p><strong>Task:</strong> Create a CTE that calculates <code>total_goals</code>, then filter for matches with 10+ goals.</p><div class="sample"><p><strong>Requirements:</strong></p><ul><li>CTE should include: league name, date, home_goal, away_goal, and total_goals</li><li>JOIN match with league to get league names</li><li>Main query filters WHERE total_goals &gt;= 10</li></ul></div><div class="tryit"><p class="tryit-title">Try it yourself</p><pre class="sql editor"></pre></div><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>-- Set up your CTE
+WITH match_list AS (
+    -- Select the league, date, home, and away goals
+    SELECT
+        name AS league,
+        m.date,
+        m.home_goal,
+        m.away_goal,
+        (m.home_goal + m.away_goal) AS total_goals
+    FROM match AS m
+    LEFT JOIN league AS l ON m.country_id = l.id)
+-- Select league, date, home, and away goals from the CTE
+SELECT league, date, home_goal, away_goal
+FROM match_list
+-- Filter by total goals
+WHERE total_goals &gt;= 10;</pre><div class="callout note"><p class="callout-title">Why This Works</p><div class="callout-body">• CTE calculates total_goals ONCE<br> • Main query can reference total_goals in WHERE clause<br> • Cleaner than repeating (home_goal + away_goal) in WHERE</div></div></div></details></div>
+</section>
+<section class="topic" id="advanced-cte" data-title="Advanced CTE Techniques">
+<div class="exercise"><h3>Question 3: CTE with Nested Subquery</h3><p><strong>Scenario:</strong> Calculate average goals from matches played in August 2013/2014 season.</p><div class="sample"><h4>Sample Data:</h4><div class="sample"><div class="table-wrap"><table><caption>match table</caption><thead><tr><th>id</th><th>country_id</th><th>date</th><th>season</th><th>home_goal</th><th>away_goal</th></tr></thead><tbody><tr><td>1</td><td>1</td><td>2013-08-15</td><td>2013/2014</td><td>3</td><td>2</td></tr><tr><td>2</td><td>1</td><td>2013-08-22</td><td>2013/2014</td><td>4</td><td>1</td></tr><tr><td>3</td><td>2</td><td>2013-09-05</td><td>2013/2014</td><td>2</td><td>2</td></tr><tr><td>4</td><td>2</td><td>2013-08-10</td><td>2013/2014</td><td>1</td><td>0</td></tr></tbody></table></div></div></div><p><strong>Task:</strong></p><div class="callout steps"><div class="callout-body"><ol><li>Create a CTE that calculates total goals (home + away)</li><li>Use a nested subquery in WHERE to filter for August 2013/2014 matches</li><li>JOIN CTE to league table</li><li>Calculate AVG(goals) per league</li></ol></div></div><div class="tryit"><p class="tryit-title">Try it yourself</p><pre class="sql editor"></pre></div><details class="solution"><summary>Show Solution</summary><div><pre class="sql">-- Set up your CTE
+WITH match_list AS (
+    SELECT
+        country_id,
+        (home_goal + away_goal) AS goals
+    FROM match
+    -- Create a list of match IDs to filter data in the CTE
+    WHERE id IN (
+        SELECT id
+        FROM match
+        WHERE season = '2013/2014' AND EXTRACT(MONTH FROM date) = '08'))
+-- Select the league name and average of goals in the CTE
+SELECT
+    name,
+    AVG(match_list.goals)
+FROM league AS l
+-- Join the CTE onto the league table
+LEFT JOIN match_list ON l.id = match_list.country_id
+GROUP BY l.name;</pre><div class="callout tip"><p class="callout-title">Advanced Technique</p><div class="callout-body">• Nested subquery INSIDE the CTE's WHERE clause<br> • <code>EXTRACT(MONTH FROM date)</code> gets the month number<br> • Filters for month 8 (August) only</div></div><div class="sample"><h4>Expected Output:</h4><div class="table-wrap"><table><thead><tr><th>name</th><th>avg</th></tr></thead><tbody><tr><td>Premier League</td><td>5.0</td></tr><tr><td>La Liga</td><td>1.0</td></tr></tbody></table></div></div></div></details></div>
+</section>
+<section class="topic" id="comparison" data-title="Comparing Approaches: JOIN vs Subquery vs CTE">
+<div class="callout note"><p class="callout-title">When to Use Each Method</p><div class="callout-body"><ul><li><strong>JOINs:</strong> Combine columns from multiple tables based on related data</li><li><strong>Nested Subqueries:</strong> Filter or calculate using one query's result in another (independent inner query)</li><li><strong>Correlated Subquery:</strong> Row-by-row comparisons (dependent on outer query)</li><li><strong>CTE:</strong> Complex, multi-step queries needing improved readability</li></ul></div></div><div class="exercise"><h3>Comparison Challenge: Get Team Names for Matches</h3><p><strong>Goal:</strong> Display match dates with home and away team names. We'll solve this problem 3 different ways!</p><div class="sample"><h4>Sample Tables:</h4><div class="sample"><div class="table-wrap"><table><caption>match table</caption><thead><tr><th>id</th><th>date</th><th>hometeam_id</th><th>awayteam_id</th><th>home_goal</th><th>away_goal</th></tr></thead><tbody><tr><td>1</td><td>2014-08-16</td><td>9823</td><td>10189</td><td>3</td><td>1</td></tr><tr><td>2</td><td>2014-08-17</td><td>8634</td><td>8633</td><td>2</td><td>2</td></tr></tbody></table></div><div class="table-wrap"><table><caption>team table</caption><thead><tr><th>team_api_id</th><th>team_long_name</th></tr></thead><tbody><tr><td>9823</td><td>FC Bayern Munich</td></tr><tr><td>10189</td><td>FC Schalke 04</td></tr><tr><td>8634</td><td>FC Barcelona</td></tr><tr><td>8633</td><td>Real Madrid CF</td></tr></tbody></table></div></div></div><h3>Approach 1: Using Subqueries in FROM</h3><div class="card"><p class="card-title">Subquery Method</p><p><strong>Step 1:</strong> Create home team subquery</p><pre class="sql" data-run>SELECT
+    m.id,
+    t.team_long_name AS hometeam
+-- Left join team to match
+FROM match AS m
+LEFT JOIN team AS t
+    ON m.hometeam_id = t.team_api_id;</pre><p><strong>Step 2:</strong> Add away team subquery and combine</p><pre class="sql" data-run>SELECT
+    m.date,
+    -- Get the home and away team names
+    hometeam,
+    awayteam,
+    m.home_goal,
+    m.away_goal
+FROM match AS m
+
+-- Join the home subquery to the match table
+LEFT JOIN (
+    SELECT match.id, team.team_long_name AS hometeam
+    FROM match
+    LEFT JOIN team
+        ON match.hometeam_id = team.team_api_id) AS home
+    ON home.id = m.id
+
+-- Join the away subquery to the match table
+LEFT JOIN (
+    SELECT match.id, team.team_long_name AS awayteam
+    FROM match
+    LEFT JOIN team
+        -- Get the away team ID in the subquery
+        ON match.awayteam_id = team.team_api_id) AS away
+    ON away.id = m.id;</pre><div class="callout warn"><p class="callout-title">Drawbacks</p><div class="callout-body">• Lots of nested code - hard to read<br> • Repeating similar logic for home and away<br> • Difficult to debug</div></div></div><h3>Approach 2: Using Correlated Subqueries</h3><div class="card"><p class="card-title">Correlated Subquery Method</p><pre class="sql" data-run>SELECT
+    m.date,
+    (SELECT team_long_name
+     FROM team AS t
+     WHERE t.team_api_id = m.hometeam_id) AS hometeam,
+    -- Connect the team to the match table
+    (SELECT team_long_name
+     FROM team AS t
+     WHERE t.team_api_id = m.awayteam_id) AS awayteam,
+    -- Select home and away goals
+    home_goal,
+    away_goal
+FROM match AS m;</pre><div class="callout note"><p class="callout-title">Benefits</p><div class="callout-body">• More concise than nested subqueries<br> • Easy to understand the correlation<br> <br> <strong>⚠️ Drawbacks:</strong><br> • Runs once per row (slower for large datasets)<br> • Can't reuse the subquery result</div></div></div><h3>Approach 3: Using CTEs ⭐ BEST</h3><div class="card"><p class="card-title">CTE Method (Recommended!)</p><p><strong>Step 1:</strong> Build the home CTE</p><pre class="sql" data-run>SELECT
+    -- Select match id and team long name
+    m.id,
+    t.team_long_name AS hometeam
+FROM match AS m
+-- Join team to match using team_api_id and hometeam_id
+LEFT JOIN team AS t
+    ON t.team_api_id = m.hometeam_id;</pre><p><strong>Step 2:</strong> Declare it as a CTE</p><pre class="sql" data-run>-- Declare the home CTE
+WITH home AS (
+    SELECT m.id, t.team_long_name AS hometeam
+    FROM match AS m
+    LEFT JOIN team AS t
+        ON m.hometeam_id = t.team_api_id)
+-- Select everything from home
+SELECT *
+FROM home;</pre><p><strong>Step 3:</strong> Add away CTE and join them</p><pre class="sql" data-run>WITH home AS (
+    SELECT m.id, m.date,
+        t.team_long_name AS hometeam, m.home_goal
+    FROM match AS m
+    LEFT JOIN team AS t
+        ON m.hometeam_id = t.team_api_id),
+-- Declare and set up the away CTE
+away AS (
+    SELECT m.id, m.date,
+        t.team_long_name AS awayteam, m.away_goal
+    FROM match AS m
+    LEFT JOIN team AS t
+        ON m.awayteam_id = t.team_api_id)
+-- Select date, home_goal, and away_goal
+SELECT
+    home.date,
+    home.hometeam,
+    away.awayteam,
+    home.home_goal,
+    away.away_goal
+-- Join away and home on the id column
+FROM home
+INNER JOIN away
+    ON home.id = away.id;</pre><div class="callout tip"><p class="callout-title">Why CTEs Win</p><div class="callout-body">• Clear, named steps (home and away)<br> • Easy to debug each CTE independently<br> • Reusable - define once, reference multiple times<br> • Much more readable than nested subqueries<br> • Better performance than correlated subqueries</div></div></div><div class="sample"><h4>Expected Output (All Methods):</h4><div class="table-wrap"><table><thead><tr><th>date</th><th>hometeam</th><th>awayteam</th><th>home_goal</th><th>away_goal</th></tr></thead><tbody><tr><td>2014-08-16</td><td>FC Bayern Munich</td><td>FC Schalke 04</td><td>3</td><td>1</td></tr><tr><td>2014-08-17</td><td>FC Barcelona</td><td>Real Madrid CF</td><td>2</td><td>2</td></tr></tbody></table></div></div></div>
+</section>
+<section class="topic" id="multiple-cte" data-title="Working with Multiple CTEs">
+<div class="callout def"><p class="callout-title">Multiple CTEs</p><div class="callout-body">You can define multiple CTEs in a single query, separated by commas. Each CTE can reference previously defined CTEs!</div></div><div class="card"><h3>Syntax for Multiple CTEs</h3><pre class="sql">WITH
+cte1 AS (
+    SELECT ... FROM table1
+),
+cte2 AS (
+    SELECT ... FROM cte1  -- Can reference cte1!
+),
+cte3 AS (
+    SELECT ... FROM cte1 JOIN cte2  -- Can use both!
+)
+SELECT * FROM cte3;</pre></div><div class="exercise"><h3>Final Challenge: Complete Match Report</h3><p><strong>Goal:</strong> Create a complete match report with home team, away team, and goals using TWO CTEs!</p><div class="callout steps"><p class="callout-title">Step-by-Step Guide</p><div class="callout-body"><ol><li>Create <code>home</code> CTE: JOIN match and team on hometeam_id, select id, date, hometeam, home_goal</li><li>Create <code>away</code> CTE: JOIN match and team on awayteam_id, select id, date, awayteam, away_goal</li><li>Main query: JOIN both CTEs on id, select all relevant columns</li></ol></div></div><div class="tryit"><p class="tryit-title">Try it yourself</p><pre class="sql editor"></pre></div><details class="solution"><summary>Show Complete Solution</summary><div><pre class="sql" data-run>WITH home AS (
+    SELECT
+        m.id,
+        m.date,
+        t.team_long_name AS hometeam,
+        m.home_goal
+    FROM match AS m
+    LEFT JOIN team AS t
+        ON m.hometeam_id = t.team_api_id),
+-- Declare and set up the away CTE
+away AS (
+    SELECT
+        m.id,
+        m.date,
+        t.team_long_name AS awayteam,
+        m.away_goal
+    FROM match AS m
+    LEFT JOIN team AS t
+        ON m.awayteam_id = t.team_api_id)
+-- Select date, home_goal, and away_goal
+SELECT
+    home.date,
+    home.hometeam,
+    away.awayteam,
+    home.home_goal,
+    away.away_goal
+-- Join away and home on the id column
+FROM home
+INNER JOIN away
+    ON home.id = away.id;</pre><div class="callout tip"><p class="callout-title">Best Practices for Multiple CTEs</p><div class="callout-body">1. Give meaningful names (home, away, not cte1, cte2)<br> 2. Separate CTEs with commas<br> 3. Test each CTE independently before combining<br> 4. Document what each CTE does with comments<br> 5. Keep CTEs focused on one logical step each</div></div><div class="callout note"><p class="callout-title">Benefits Recap</p><div class="callout-body">• <strong>Modularity:</strong> Each CTE is a logical building block<br> • <strong>Readability:</strong> Clear intent with meaningful names<br> • <strong>Debugging:</strong> Test each CTE separately<br> • <strong>Reusability:</strong> Reference CTEs multiple times if needed<br> • <strong>Maintainability:</strong> Easy to modify one step without affecting others</div></div></div></details></div><div class="card"><h3>Summary: When to Use CTEs</h3><div class="table-wrap"><table><thead><tr><th>Scenario</th><th>Best Choice</th><th>Why</th></tr></thead><tbody><tr><td>Combine columns from 2-3 tables</td><td>Simple JOIN</td><td>Straightforward, efficient</td></tr><tr><td>Filter using another query's result</td><td>Subquery (IN/NOT IN)</td><td>Simple, runs once</td></tr><tr><td>Row-by-row comparison</td><td>Correlated Subquery</td><td>Dynamic per-row calculation</td></tr><tr><td>Multi-step complex query</td><td><strong>CTE</strong></td><td>Readable, modular, maintainable</td></tr><tr><td>Same logic used multiple times</td><td><strong>CTE</strong></td><td>Define once, reference many times</td></tr><tr><td>Recursive queries (hierarchies)</td><td><strong>CTE</strong></td><td>Only way to do recursion in SQL</td></tr></tbody></table></div></div>
+</section>
+</article>

@@ -1,0 +1,116 @@
+<article class="module" data-module="joins" data-title="Joins &amp; Set Operations" data-level="Beginner" data-blurb="Combine tables with INNER, OUTER, CROSS and SELF joins, set operators and subqueries.">
+<section class="topic" id="inner-join" data-title="INNER JOIN">
+<div class="callout def"><p class="callout-title">KEY</p><div class="callout-body">A column that appears in two tables and uniquely identifies each record. Think of it as a "bridge" connecting two tables.</div></div><div class="card"><h3>What is INNER JOIN?</h3><p><strong>Simple Explanation:</strong> INNER JOIN fetches only the records that have matching values in BOTH tables. If there's no match, the record is excluded.</p><p><strong>Real-world analogy:</strong> Imagine two lists - one with people's names and another with their phone numbers. INNER JOIN gives you only the people who appear on BOTH lists.</p></div><div class="callout tip"><p class="callout-title">Order of Execution</p><div class="callout-body">1. FROM (start with left table)<br> 2. INNER JOIN (bring in right table)<br> 3. ON (match the keys)<br> 4. SELECT (choose columns to display)</div></div><div class="exercise"><h3>Question 1: Basic INNER JOIN</h3><p><strong>Task:</strong> Perform an inner join with the <code>cities</code> table on the left and the <code>countries</code> table on the right. Don't use table aliases.</p><div class="sample"><p><strong>Sample Data:</strong></p><div class="table-wrap"><table><caption>cities table</caption><thead><tr><th>name</th><th>country_code</th><th>city_proper_pop</th></tr></thead><tbody><tr><td>Tokyo</td><td>JPN</td><td>13,960,000</td></tr><tr><td>Paris</td><td>FRA</td><td>2,141,000</td></tr></tbody></table></div><br><div class="table-wrap"><table><caption>countries table</caption><thead><tr><th>code</th><th>name</th><th>region</th></tr></thead><tbody><tr><td>JPN</td><td>Japan</td><td>East Asia</td></tr><tr><td>FRA</td><td>France</td><td>Western Europe</td></tr></tbody></table></div></div><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT *
+FROM cities
+INNER JOIN countries
+    ON cities.country_code = countries.code;</pre><p><strong>Explanation:</strong> This joins cities and countries where the country_code in cities matches the code in countries.</p></div></details></div><div class="exercise"><h3>Question 2: Selecting Specific Columns with Aliases</h3><p><strong>Task:</strong> Select the city name (aliased as <code>city</code>), country name (aliased as <code>country</code>), and region from the joined tables.</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT cities.name AS city, countries.name AS country, countries.region
+FROM cities
+INNER JOIN countries
+    ON cities.country_code = countries.code;</pre><p><strong>Why use table.column notation?</strong> Both tables have a "name" column, so we must specify which table's name we want.</p></div></details></div><div class="exercise"><h3>Question 3: Using Table Aliases</h3><p><strong>Task:</strong> Join <code>countries</code> (alias as <code>c</code>) with <code>economies</code> (alias as <code>e</code>). Select code as country_code, name, year, and inflation_rate.</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT c.code AS country_code, name, year, inflation_rate
+FROM countries AS c
+INNER JOIN economies AS e
+    ON c.code = e.code;</pre><div class="callout tip"><p class="callout-title">Important Note</p><div class="callout-body">Only "code" is ambiguous (exists in both tables), so it needs a table prefix (c.code). The other columns (name, year, inflation_rate) are unique to one table, so no prefix is needed.</div></div></div></details></div>
+</section>
+<section class="topic" id="using" data-title="USING Keyword">
+<div class="callout def"><p class="callout-title">USING Keyword</p><div class="callout-body">A shortcut for the ON clause when the joining columns have the <strong>same name</strong> in both tables.</div></div><div class="grid-2"><div class="card"><h3>Using ON</h3><pre class="sql" data-run>SELECT *
+FROM countries AS c
+INNER JOIN languages AS l
+    ON c.code = l.code;</pre></div><div class="card"><h3>Using USING</h3><pre class="sql" data-run>SELECT *
+FROM countries AS c
+INNER JOIN languages AS l
+    USING(code);</pre></div></div><div class="callout warn"><p class="callout-title">Caution</p><div class="callout-body">Only use USING when the column names are IDENTICAL in both tables. If they differ (like country_code vs code), you must use ON.</div></div><div class="exercise"><h3>Question: Finding Countries Speaking Bhojpuri</h3><p><strong>Task:</strong> Select country names and language names for all countries that speak 'Bhojpuri'. Use USING keyword.</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT c.name AS country, l.name AS language
+FROM countries AS c
+INNER JOIN languages AS l
+    USING(code)
+WHERE l.name = 'Bhojpuri';</pre></div></details></div>
+</section>
+<section class="topic" id="relationships" data-title="Database Relationships">
+<div class="sample"><h3>Three Types of Relationships</h3></div><div class="card"><h3>1. One-to-Many (1:M)</h3><p><strong>Definition:</strong> One record in Table A relates to multiple records in Table B.</p><p><strong>Example:</strong> One Author → Many Books (J.K. Rowling wrote Harry Potter 1, 2, 3...)</p><div class="sample"><div class="table-wrap"><table><thead><tr><th>Author</th><th>Books</th></tr></thead><tbody><tr><td>J.K. Rowling</td><td>Harry Potter 1<br>Harry Potter 2<br>Harry Potter 3</td></tr></tbody></table></div></div></div><div class="card"><h3>2. One-to-One (1:1)</h3><p><strong>Definition:</strong> One record in Table A relates to exactly one record in Table B.</p><p><strong>Example:</strong> One Person → One Passport, One Finger → One Fingerprint</p></div><div class="card"><h3>3. Many-to-Many (M:M)</h3><p><strong>Definition:</strong> Multiple records in Table A relate to multiple records in Table B.</p><p><strong>Example:</strong> Countries ↔ Languages (France speaks French, English; English is spoken in USA, UK, Australia...)</p></div>
+</section>
+<section class="topic" id="outer-joins" data-title="OUTER JOINs">
+<div class="callout def"><p class="callout-title">OUTER JOINs</p><div class="callout-body">Return records even if there's no match in one of the tables. The missing data appears as NULL.</div></div><div class="card"><h3>LEFT JOIN</h3><p><strong>Returns:</strong> ALL records from the LEFT table + matching records from the RIGHT table</p><p><strong>Non-matches:</strong> Show as NULL in right table columns</p><pre class="sql" data-run>SELECT c1.name AS city, c2.name AS country
+FROM cities AS c1
+LEFT JOIN countries AS c2
+    ON c1.country_code = c2.code;</pre></div><div class="card"><h3>RIGHT JOIN</h3><p><strong>Returns:</strong> ALL records from the RIGHT table + matching records from the LEFT table</p><p><strong>Less Common:</strong> Most developers prefer LEFT JOIN (it's more intuitive)</p></div><div class="callout tip"><p class="callout-title">LEFT JOIN ↔ RIGHT JOIN Conversion</p><div class="callout-body">To convert LEFT JOIN to RIGHT JOIN, you must:<br> 1. Change JOIN type (LEFT → RIGHT)<br> 2. Swap table order<br> These give the same result!</div></div><div class="exercise"><h3>Question: Average GDP by Region</h3><p><strong>Task:</strong> Calculate average GDP per capita by region in 2010 using LEFT JOIN.</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT region, AVG(gdp_percapita) AS avg_gdp
+FROM countries AS c
+LEFT JOIN economies AS e
+    USING(code)
+WHERE year = 2010
+GROUP BY c.region;</pre><p><strong>Why LEFT JOIN?</strong> We want all regions from countries, even if some don't have economic data.</p></div></details></div>
+</section>
+<section class="topic" id="full-cross" data-title="FULL JOIN &amp; CROSS JOIN">
+<div class="card"><h3>FULL JOIN</h3><p><strong>Definition:</strong> Combines LEFT JOIN and RIGHT JOIN - returns ALL records from BOTH tables</p><p><strong>Simple Explanation:</strong> "Give me everything from both tables, whether they match or not"</p><pre class="sql" data-run>SELECT name AS country, region, code, basic_unit
+FROM countries
+FULL JOIN currencies
+    USING(code)
+WHERE region = 'North America' OR name IS NULL;</pre></div><div class="card"><h3>CROSS JOIN (Cartesian Product)</h3><p><strong>Definition:</strong> Creates ALL possible combinations between two tables</p><p><strong>Real-world example:</strong> If you have 3 shirts and 4 pants, you have 3×4 = 12 outfit combinations</p><div class="callout warn"><p class="callout-title">Warning</p><div class="callout-body">CROSS JOIN can create HUGE result sets! Use with caution.</div></div></div><div class="exercise"><h3>Question: Languages in Pakistan &amp; India</h3><p><strong>Scenario:</strong> What languages could have been spoken in Pakistan or India throughout history?</p><div class="grid-2"><div><h4>INNER JOIN (25 records)</h4><pre class="sql" data-run>SELECT c.name AS country, l.name AS language
+FROM countries AS c
+INNER JOIN languages AS l
+    USING(code)
+WHERE c.code IN('PAK','IND')
+    AND l.code IN('PAK','IND');</pre></div><div><h4>CROSS JOIN (50 records)</h4><pre class="sql" data-run>SELECT c.name AS country, l.name AS language
+FROM countries AS c
+CROSS JOIN languages AS l
+WHERE c.code IN('PAK','IND')
+    AND l.code IN('PAK','IND');</pre></div></div><p><strong>Result:</strong> CROSS JOIN returns all combinations (2 countries × 25 languages = 50 records)</p></div>
+</section>
+<section class="topic" id="self-join" data-title="SELF JOIN">
+<div class="callout def"><p class="callout-title">SELF JOIN</p><div class="callout-body">A table joined with itself to compare values within the same table</div></div><div class="card"><h3>Why Use SELF JOIN?</h3><p><strong>Purpose:</strong> Compare different rows in the same table</p><p><strong>Key Requirement:</strong> You MUST use aliases (you can't join "populations" with "populations" - you need "p1" and "p2")</p></div><div class="exercise"><h3>Question: Population Change 2010-2015</h3><p><strong>Task:</strong> Compare each country's population in 2010 vs 2015</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT
+    p1.country_code,
+    p1.size AS size2010,
+    p2.size AS size2015
+FROM populations AS p1
+INNER JOIN populations AS p2
+    USING(country_code)
+WHERE p1.year = 2010 AND p2.year = 2015;</pre><p><strong>How it works:</strong> We treat the populations table as TWO separate tables (p1 for 2010, p2 for 2015) and join them on country_code.</p></div></details></div>
+</section>
+<section class="topic" id="set-theory" data-title="Set Theory for SQL">
+<div class="sample"><h3>Three Set Operations</h3><p>UNION | INTERSECT | EXCEPT</p></div><div class="card"><h3>UNION &amp; UNION ALL</h3><p><strong>UNION:</strong> Stacks two tables vertically, removing duplicates</p><p><strong>UNION ALL:</strong> Stacks two tables vertically, keeping duplicates</p><div class="callout tip"><p class="callout-title">Key Difference from JOINs</p><div class="callout-body">• JOINs combine tables HORIZONTALLY (add columns)<br> • UNION combines tables VERTICALLY (stack rows)</div></div><pre class="sql" data-run>SELECT *
+FROM economies2015
+UNION
+SELECT *
+FROM economies2019
+ORDER BY code, year;</pre><div class="callout warn"><p class="callout-title">Requirements</p><div class="callout-body">• Same number of columns in both queries<br> • Same data types in corresponding columns</div></div></div><div class="card"><h3>INTERSECT</h3><p><strong>Returns:</strong> Only records that appear in BOTH tables</p><p><strong>Difference from INNER JOIN:</strong> INTERSECT removes duplicates automatically</p><pre class="sql" data-run>-- Find cities that are also country names
+SELECT name
+FROM countries
+INTERSECT
+SELECT name
+FROM cities;</pre><p><strong>Result:</strong> Singapore (it's both a country and a city!)</p></div><div class="card"><h3>EXCEPT</h3><p><strong>Returns:</strong> Records in the LEFT table that are NOT in the RIGHT table</p><p><strong>Think of it as:</strong> "Give me everything from Table A, but remove anything that also appears in Table B"</p><pre class="sql" data-run>-- Find cities that are NOT country names
+SELECT name
+FROM cities
+EXCEPT
+SELECT name
+FROM countries
+ORDER BY name;</pre></div>
+</section>
+<section class="topic" id="subqueries" data-title="Subqueries">
+<div class="callout def"><p class="callout-title">Subquery</p><div class="callout-body">A query nested inside another query (also called an "inner query")</div></div><div class="card"><h3>JOINs vs Subqueries</h3><div class="table-wrap"><table><thead><tr><th>Aspect</th><th>JOINs</th><th>Subqueries</th></tr></thead><tbody><tr><td>Purpose</td><td>Combine rows to pull data from multiple tables</td><td>Filter rows by checking if related data exists</td></tr><tr><td>Duplicates</td><td>Can create duplicate rows</td><td>Semi-join (IN, EXISTS) avoids duplication</td></tr><tr><td>Use Case</td><td>Need columns from multiple tables</td><td>Need to filter based on another table's data</td></tr></tbody></table></div></div><div class="card"><h3>Semi-Join (using IN)</h3><p><strong>Purpose:</strong> Filter based on existence in another table</p><div class="exercise"><h3>Question: Languages in Middle East</h3><p><strong>Task:</strong> Find distinct language names spoken in Middle East countries</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT DISTINCT name
+FROM languages
+WHERE code IN
+    (SELECT code
+     FROM countries
+     WHERE region = 'Middle East')
+ORDER BY name;</pre><p><strong>How it works:</strong><br> 1. Inner query: Get all country codes in Middle East<br> 2. Outer query: Get languages where code matches those codes</p></div></details></div></div><div class="card"><h3>Anti-Join (using NOT IN)</h3><p><strong>Purpose:</strong> Find records that DON'T exist in another table</p><div class="exercise"><h3>Question: Oceanian Countries Without Currencies</h3><p><strong>Scenario:</strong> You found 15 Oceanian currencies in an INNER JOIN, but there are 19 Oceanian countries total. Which 4 are missing?</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT code, name
+FROM countries
+WHERE continent = 'Oceania'
+    AND code NOT IN
+    (SELECT code
+     FROM currencies);</pre><p><strong>Purpose:</strong> Identify data quality issues - why don't these countries have currency data?</p></div></details></div></div><div class="card"><h3>Subqueries in SELECT</h3><p><strong>Purpose:</strong> Calculate values for each row based on the whole table</p><div class="exercise"><h3>Question: High Life Expectancy Countries</h3><p><strong>Task:</strong> Find countries where 2015 life expectancy is 1.15× higher than the global average</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT *
+FROM populations
+WHERE year = 2015
+    AND life_expectancy &gt; 1.15 *
+    (SELECT AVG(life_expectancy)
+     FROM populations
+     WHERE year = 2015);</pre></div></details></div></div><div class="card"><h3>Subqueries in FROM</h3><p><strong>Purpose:</strong> Create a temporary table to query from</p><div class="exercise"><h3>Question: Top 10 Capital Cities by Urban Percentage</h3><p><strong>Formula:</strong> city_perc = (city_proper_pop / metroarea_pop) × 100</p><p><strong>Filters:</strong> Europe and Americas only, capitals only, no NULL metro areas</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT name, country_code, city_proper_pop, metroarea_pop,
+    city_proper_pop / metroarea_pop * 100 AS city_perc
+FROM cities
+WHERE name IN(
+    SELECT capital
+    FROM countries
+    WHERE continent = 'Europe'
+        OR continent LIKE '%America')
+    AND metroarea_pop IS NOT NULL
+ORDER BY city_perc DESC
+LIMIT 10;</pre></div></details></div></div>
+</section>
+</article>

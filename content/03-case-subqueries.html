@@ -1,0 +1,241 @@
+<article class="module" data-module="case-subqueries" data-title="CASE &amp; Subqueries" data-level="Intermediate" data-blurb="Add IF-THEN logic with CASE and answer harder questions with simple, correlated and nested subqueries.">
+<section class="topic" id="case-basics" data-title="CASE Statements - Basics">
+<div class="callout data"><p class="callout-title">Database Context: European Soccer Database</p><div class="callout-body"><p><strong>Contains:</strong> 25,000+ matches | 300 teams | 10,000 players (2008-2016)</p><p><strong>Tables:</strong> country, league, team, match</p></div></div><div class="callout def"><p class="callout-title">CASE Statement</p><div class="callout-body">SQL's way of implementing IF-THEN-ELSE logic. It allows you to create new columns based on conditions.</div></div><div class="card"><h3>Basic Syntax</h3><pre class="sql">CASE WHEN x = 1 THEN 'a'
+    WHEN x = 2 THEN 'b'
+    ELSE 'c'
+END AS new_column</pre><div class="callout tip"><p class="callout-title">Structure</p><div class="callout-body">• <strong>WHEN:</strong> The condition to test<br> • <strong>THEN:</strong> The value to return if condition is true<br> • <strong>ELSE:</strong> Default value if no conditions match<br> • <strong>END:</strong> Closes the CASE statement (always required!)</div></div></div><div class="exercise"><h3>Question 1: Identifying Home Teams</h3><p><strong>Scenario:</strong> You need to identify matches in Germany that included FC Bayern Munich, FC Schalke 04, or other teams as the home team.</p><p><strong>Team IDs:</strong></p><ul><li>FC Schalke 04: hometeam_id = 10189</li><li>FC Bayern Munich: hometeam_id = 9823</li></ul><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT
+    CASE WHEN hometeam_id = 10189 THEN 'FC Schalke 04'
+        WHEN hometeam_id = 9823 THEN 'FC Bayern Munich'
+        ELSE 'Other'
+    END AS home_team,
+    COUNT(id) AS total_matches
+FROM matches_germany
+GROUP BY home_team;</pre><p><strong>How it works:</strong> The CASE statement creates a new column called "home_team" that labels each match, then we COUNT how many matches each category has.</p></div></details></div><div class="exercise"><h3>Question 2: Match Outcomes</h3><p><strong>Task:</strong> Create a CASE statement to identify matches as home wins, home losses, or ties.</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT
+    date,
+    -- Identify home wins, losses, or ties
+    CASE WHEN home_goal &gt; away_goal THEN 'Home win!'
+        WHEN home_goal &lt; away_goal THEN 'Home loss :('
+        ELSE 'Tie'
+    END AS outcome
+FROM matches_spain;</pre><div class="callout result"><div class="callout-body">Result: 100 out of 380 rows</div></div></div></details></div><div class="exercise"><h3>Question 3: Barcelona Away Games</h3><p><strong>Task:</strong> Identify Barcelona's away games as wins, losses, or ties. Barcelona's awayteam_id = 8634.</p><p><strong>Steps:</strong></p><ol><li>LEFT JOIN teams_spain to get opponent names</li><li>Use CASE to categorize outcomes from Barcelona's perspective</li><li>Filter for only Barcelona's away games</li></ol><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>-- Select matches where Barcelona was the away team
+SELECT
+    m.date,
+    t.team_long_name AS opponent,
+    CASE WHEN m.home_goal &lt; m.away_goal THEN 'Barcelona win'
+        WHEN m.home_goal &gt; m.away_goal THEN 'Barcelona loss'
+        ELSE 'Tie'
+    END AS outcome
+FROM matches_spain AS m
+LEFT JOIN teams_spain AS t
+    ON m.hometeam_id = t.team_api_id
+WHERE m.awayteam_id = 8634;</pre><div class="callout tip"><p class="callout-title">Key Insight</p><div class="callout-body">When Barcelona is the AWAY team, they win when away_goal &gt; home_goal (opposite of the home team logic!)</div></div><div class="callout result"><div class="callout-body">Result: 19 rows out of 19 rows</div></div></div></details></div>
+</section>
+<section class="topic" id="case-complex" data-title="Complex CASE Statements">
+<div class="callout def"><p class="callout-title">Complex CASE</p><div class="callout-body">Uses multiple conditions with AND/OR operators inside WHEN clauses to test complex logical scenarios.</div></div><div class="exercise"><h3>Question: El Clásico Matches</h3><p><strong>Scenario:</strong> Barcelona vs Real Madrid - the most famous rivalry in soccer! Track these matches when Barcelona is the home team.</p><p><strong>Team IDs:</strong></p><ul><li>Barcelona: 8634</li><li>Real Madrid: 8633</li></ul><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT
+    date,
+    CASE WHEN hometeam_id = 8634 THEN 'FC Barcelona'
+        ELSE 'Real Madrid CF'
+    END AS home,
+    CASE WHEN awayteam_id = 8634 THEN 'FC Barcelona'
+        ELSE 'Real Madrid CF'
+    END AS away,
+    -- Identify possible home match outcomes
+    CASE WHEN home_goal &gt; away_goal AND hometeam_id = 8634 THEN 'Barcelona win!'
+        WHEN home_goal &lt; away_goal AND awayteam_id = 8633 THEN 'Real Madrid win!'
+        ELSE 'Tie!'
+    END AS outcome
+FROM matches_spain
+WHERE hometeam_id = 8634 AND awayteam_id = 8633;</pre><div class="callout tip"><p class="callout-title">Using AND in CASE</p><div class="callout-body">You can combine multiple conditions in a single WHEN clause using AND/OR operators for complex logic.</div></div></div></details></div><div class="exercise"><h3>Question: CASE in WHERE Clause</h3><p><strong>Task:</strong> Generate a list of matches WON by Bologna (team_id = 9857). Use CASE inside the WHERE clause!</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT
+    season,
+    date,
+    home_goal,
+    away_goal
+FROM matches_italy
+WHERE
+    CASE WHEN hometeam_id = '9857' AND home_goal &gt; away_goal THEN 'Bologna win'
+        WHEN awayteam_id = '9857' AND home_goal &lt; away_goal THEN 'Bologna win'
+    END IS NOT NULL;</pre><div class="callout note"><p class="callout-title">How it works</p><div class="callout-body">• CASE returns 'Bologna win' when they win (home or away)<br> • CASE returns NULL when Bologna doesn't win<br> • <code>IS NOT NULL</code> filters out NULL values, keeping only wins!</div></div><div class="callout result"><div class="callout-body">Result: 27 rows (Bologna's victories!)</div></div></div></details></div>
+</section>
+<section class="topic" id="case-aggregate" data-title="CASE with Aggregate Functions">
+<div class="callout def"><p class="callout-title">CASE + Aggregates</p><div class="callout-body">Combine CASE statements with COUNT, SUM, AVG to perform conditional aggregations - count or sum only when specific conditions are met.</div></div><div class="card"><h3>How COUNT with CASE Works</h3><p><strong>Key Concept:</strong> CASE returns the value (like m.id) when the condition is TRUE, and NULL when FALSE. COUNT only counts non-NULL values!</p><pre class="sql">    COUNT(CASE WHEN condition THEN m.id END)  -- Returns m.id if TRUE, NULL if FALSE
+-- COUNT ignores NULLs, so only counts when condition is TRUE</pre></div><div class="exercise"><h3>Question: COUNT with CASE</h3><p><strong>Task:</strong> Count matches played in seasons 2012/2013 and 2013/2014 for each country.</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT
+    c.name AS country,
+    COUNT(CASE WHEN m.season = '2012/2013' THEN m.id END) AS matches_2012_2013,
+    COUNT(CASE WHEN m.season = '2013/2014' THEN m.id END) AS matches_2013_2014
+FROM country AS c
+LEFT JOIN match AS m
+    ON c.id = m.country_id
+GROUP BY country;</pre><div class="callout tip"><p class="callout-title">Why this works</p><div class="callout-body">• For 2012/2013 matches: CASE returns m.id → gets counted<br> • For other seasons: CASE returns NULL → NOT counted<br> • Result: Separate count for each season in one query!</div></div><div class="callout result"><div class="callout-body">Result: 11 rows (one per country)</div></div></div></details></div><div class="exercise"><h3>Question: SUM with CASE</h3><p><strong>Task:</strong> Calculate total home goals and away goals for team 8560, grouped by season.</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT season,
+    SUM(CASE WHEN hometeam_id = 8560 THEN home_goal END) AS home_goals,
+    SUM(CASE WHEN awayteam_id = 8560 THEN away_goal END) AS away_goals
+FROM match
+GROUP BY season;</pre><p><strong>Explanation:</strong> SUM only adds up the goals when the condition is met (when team 8560 is playing), otherwise adds NULL (which SUM ignores).</p><div class="callout result"><div class="callout-body">Result: 100 rows</div></div></div></details></div><div class="exercise"><h3>Question: AVG with CASE - Calculate Tie Percentage</h3><p><strong>Task:</strong> Calculate the percentage of tied games in seasons 2013/2014 and 2014/2015 for each country.</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT
+    c.name AS country,
+    -- Calculate the percentage of tied games in each season
+    AVG(CASE WHEN m.season='2013/2014' AND m.home_goal = m.away_goal THEN 1
+        WHEN m.season='2013/2014' AND m.home_goal != m.away_goal THEN 0
+        END) AS ties_2013_2014,
+    AVG(CASE WHEN m.season='2014/2015' AND m.home_goal = m.away_goal THEN 1
+        WHEN m.season='2014/2015' AND m.home_goal != m.away_goal THEN 0
+        END) AS ties_2014_2015
+FROM country AS c
+LEFT JOIN match AS m
+    ON c.id = m.country_id
+GROUP BY country;</pre><div class="callout note"><p class="callout-title">Clever Trick!</p><div class="callout-body">• Tied games get value 1<br> • Non-tied games get value 0<br> • AVG(1s and 0s) = percentage! (e.g., AVG of [1,0,1,0] = 0.5 = 50%)</div></div><div class="callout result"><div class="callout-body">Result: 11 rows</div></div></div></details></div>
+</section>
+<section class="topic" id="simple-subquery" data-title="Simple Subqueries">
+<div class="callout def"><p class="callout-title">Simple Subquery</p><div class="callout-body">A query nested inside another query that can run independently. It's evaluated ONCE for the entire query.</div></div><div class="card"><h3>Why Use Subqueries?</h3><ul><li>✅ Comparing groups to summarized values (e.g., "above average")</li><li>✅ Reshaping data</li><li>✅ Combining data that cannot be joined</li></ul></div><div class="exercise"><h3>Question 1: High-Scoring Matches</h3><p><strong>Task:</strong> Find matches where total goals scored is MORE than 3× the average.</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT
+    -- Select the date, home goals, and away goals scored
+    date,
+    home_goal,
+    away_goal
+FROM matches_2013_2014
+-- Filter for matches where total goals exceeds 3x the average
+WHERE (home_goal + away_goal) &gt;
+    (SELECT 3 * AVG(home_goal + away_goal)
+     FROM matches_2013_2014);</pre><div class="callout steps"><p class="callout-title">Execution Order</p><div class="callout-body"><ol><li>Subquery runs FIRST: Calculates 3 × average total goals</li><li>Main query uses that single value to filter matches</li></ol></div></div></div></details></div><div class="exercise"><h3>Question 2: Teams That Never Played Home</h3><p><strong>Task:</strong> Find teams that NEVER played a game in their home city using NOT IN.</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT
+    -- Select the team long and short names
+    team_long_name,
+    team_short_name
+FROM team
+-- Exclude all values from the subquery
+WHERE team_api_id NOT IN
+    (SELECT DISTINCT hometeam_id FROM match);</pre><div class="callout tip"><p class="callout-title">NOT IN</p><div class="callout-body">Excludes any team_api_id that appears in the list of hometeam_ids. Perfect for finding "what's missing"!</div></div><div class="callout result"><div class="callout-body">Result: 52 rows (teams without home games)</div></div></div></details></div><div class="exercise"><h3>Question 3: Teams with 8+ Home Goals</h3><p><strong>Task:</strong> Find teams that scored 8 or more goals in a single home match using IN.</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT
+    -- Select the team long and short names
+    team_long_name,
+    team_short_name
+FROM team
+-- Filter for teams with 8 or more home goals
+WHERE team_api_id IN
+    (SELECT hometeam_id
+     FROM match
+     WHERE home_goal &gt;= 8);</pre><p><strong>Comparison:</strong> IN includes teams in the list, NOT IN excludes them.</p></div></details></div><div class="exercise"><h3>Question 4: Subquery in FROM</h3><p><strong>Task:</strong> Count countries with matches that had 10+ total goals.</p><div class="callout tip"><p class="callout-title">Key Rules for Subqueries in FROM</p><div class="callout-body">1. Must have an alias (e.g., AS sub)<br> 2. Can join to other tables or subqueries<br> 3. Behaves like a table</div></div><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT
+    -- Select country name and the count match IDs
+    name AS country_name,
+    COUNT(sub.id) AS matches
+FROM country AS c
+-- Inner join the subquery onto country
+INNER JOIN (SELECT id, country_id
+            FROM match
+            -- Filter the subquery by matches with 10+ goals
+            WHERE (home_goal + away_goal) &gt;= 10) AS sub
+    ON c.id = sub.country_id
+GROUP BY country_name;</pre><div class="callout steps"><p class="callout-title">Step-by-step</p><div class="callout-body"><ol><li>Subquery creates a temporary table of high-scoring matches</li><li>JOIN this to country table</li><li>COUNT matches per country</li></ol></div></div></div></details></div>
+</section>
+<section class="topic" id="subquery-select" data-title="Subqueries in SELECT">
+<div class="callout def"><p class="callout-title">Subquery in SELECT</p><div class="callout-body">Returns a SINGLE value that gets added as a new column to every row. Useful for comparing individual rows to aggregate values.</div></div><div class="card"><h3>How It Works</h3><pre class="sql" data-run>SELECT
+    Name,
+    ListPrice,
+    (SELECT AVG(ListPrice) FROM Product) AS AveragePrice
+FROM Product;</pre><div class="callout steps"><p class="callout-title">Execution</p><div class="callout-body"><ol><li>Subquery runs ONCE: calculates AVG(ListPrice) = single value (e.g., 2.67)</li><li>This value is "broadcast" to every row in the result</li><li>Each row gets the same overall average in a new column</li></ol></div></div></div><div class="exercise"><h3>Question 1: League vs Overall Average</h3><p><strong>Task:</strong> Compare average goals per league to the overall average across all leagues for 2013/2014.</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT
+    l.name AS league,
+    ROUND(AVG(m.home_goal + m.away_goal), 2) AS avg_goals,
+    (SELECT ROUND(AVG(home_goal + away_goal), 2)
+     FROM match
+     WHERE season = '2013/2014') AS overall_avg
+FROM league AS l
+LEFT JOIN match AS m
+    ON l.country_id = m.country_id
+WHERE season = '2013/2014'
+GROUP BY name;</pre><p><strong>Result:</strong> Each league gets its own average PLUS the same overall average for comparison.</p></div></details></div><div class="exercise"><h3>Question 2: Calculate the Difference</h3><p><strong>Task:</strong> Add a column showing how much each league's average differs from the overall average.</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT
+    name AS league,
+    ROUND(AVG(m.home_goal + m.away_goal),2) AS avg_goals,
+    -- Subtract the overall average from the league average
+    ROUND(AVG(m.home_goal + m.away_goal) -
+        (SELECT AVG(home_goal + away_goal)
+         FROM match
+         WHERE season = '2013/2014'),2) AS diff
+FROM league AS l
+LEFT JOIN match AS m
+    ON l.country_id = m.country_id
+WHERE season = '2013/2014'
+GROUP BY l.name;</pre><div class="callout tip"><p class="callout-title">Interpretation</p><div class="callout-body">• Positive diff: League averages MORE goals than overall<br> • Negative diff: League averages FEWER goals than overall</div></div></div></details></div><div class="exercise"><h3>Question 3: Subqueries Everywhere!</h3><p><strong>Task:</strong> Find stages where average goals &gt; overall average. Use subqueries in SELECT, FROM, and WHERE!</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT
+    stage,
+    ROUND(s.avg_goals,2) AS avg_goal,
+    (SELECT AVG(home_goal + away_goal)
+     FROM match WHERE season = '2012/2013') AS overall_avg
+FROM
+    (SELECT
+         stage,
+         AVG(home_goal + away_goal) AS avg_goals
+     FROM match
+     WHERE season = '2012/2013'
+     GROUP BY stage) AS s
+WHERE
+    s.avg_goals &gt; (SELECT AVG(home_goal + away_goal)
+                   FROM match WHERE season = '2012/2013');</pre><div class="callout note"><p class="callout-title">Three Subqueries in One!</p><div class="callout-body">1. <strong>SELECT:</strong> Calculate overall average<br> 2. <strong>FROM:</strong> Create temp table of stage averages<br> 3. <strong>WHERE:</strong> Filter for stages above overall average</div></div></div></details></div>
+</section>
+<section class="topic" id="correlated" data-title="Correlated Subqueries">
+<div class="callout def"><p class="callout-title">Correlated Subquery</p><div class="callout-body">References columns from the outer query. Cannot run independently. Re-evaluated for EVERY row in the outer query.</div></div><div class="callout warn"><p class="callout-title">Performance</p><div class="callout-body">Correlated subqueries are SLOWER because they run once per row. Use only when necessary!</div></div><div class="grid-2"><div class="card"><h3>Simple Subquery</h3><ul><li>✅ Runs ONCE</li><li>✅ Independent</li><li>✅ Returns same value for all rows</li><li>✅ Faster</li></ul></div><div class="card"><h3>Correlated Subquery</h3><ul><li>⚠️ Runs ONCE PER ROW</li><li>⚠️ Depends on outer query</li><li>⚠️ Different value per row</li><li>⚠️ Slower</li></ul></div></div><div class="card"><h3>Classic Example: Salary Above Department Average</h3><pre class="sql" data-run>SELECT
+    employee_name,
+    salary,
+    department_id
+FROM employees e1
+WHERE
+    salary &gt; (
+        SELECT AVG(salary)
+        FROM employees e2
+        WHERE e1.department_id = e2.department_id);</pre><div class="callout steps"><p class="callout-title">How It Executes</p><div class="callout-body"><ol><li>Outer query processes employee #1 (dept = Sales)</li><li>Inner subquery runs: calculates AVG salary for Sales dept</li><li>Compares employee #1's salary to Sales average</li><li>Move to employee #2 (dept = IT)</li><li>Inner subquery runs AGAIN: calculates AVG for IT dept</li><li>...repeats for EVERY employee</li></ol></div></div><div class="callout tip"><p class="callout-title">The Key</p><div class="callout-body"><code>WHERE e1.department_id = e2.department_id</code> creates the correlation - the subquery uses a value from the outer query!</div></div></div><div class="exercise"><h3>Question: Highest Scoring Match per Country/Season</h3><p><strong>Task:</strong> Find the highest scoring match for EACH country in EACH season.</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT
+    main.country_id,
+    main.date,
+    main.home_goal,
+    main.away_goal
+FROM match AS main
+WHERE
+    -- Filter for matches with the highest number of total goals scored
+    (home_goal + away_goal) =
+    (SELECT MAX(sub.home_goal + sub.away_goal)
+     FROM match AS sub
+     -- Join the main query to the subquery in WHERE
+     WHERE main.country_id = sub.country_id
+         AND main.season = sub.season);</pre><div class="callout steps"><p class="callout-title">Step-by-Step Execution</p><div class="callout-body"><ol><li><strong>Row 1:</strong> England, 2014 season → Subquery finds MAX goals for England 2014</li><li><strong>Row 2:</strong> France, 2015 season → Subquery finds MAX goals for France 2015</li><li><strong>Row 3:</strong> England, 2014 season → Subquery finds MAX goals for England 2014 (same as row 1)</li><li>Process continues for every row...</li></ol></div></div><div class="callout note"><p class="callout-title">Why Correlated?</p><div class="callout-body">• We need the MAX for EACH country-season combination<br> • A simple subquery would give us the MAX across ALL matches<br> • Correlation allows us to filter the MAX by current row's country and season</div></div><div class="callout warn"><p class="callout-title">Why NOT a Simple Subquery?</p><div class="callout-body"><code>WHERE (home_goal + away_goal) = (SELECT MAX(home_goal + away_goal) FROM match)</code><br> This would only find the ONE match with the absolute highest score across all countries/seasons!</div></div></div></details></div>
+</section>
+<section class="topic" id="nested" data-title="Nested Subqueries">
+<div class="callout def"><p class="callout-title">Nested Subquery</p><div class="callout-body">A subquery inside another subquery. Useful for breaking complex operations into smaller, manageable steps.</div></div><div class="exercise"><h3>Question 1: Max Goals vs Premier League</h3><p><strong>Task:</strong> Compare max goals per season across all leagues to the max for England Premier League.</p><details class="solution"><summary>Show Solution</summary><div><pre class="sql" data-run>SELECT
+    season,
+    MAX(home_goal + away_goal) AS max_goals,
+    (SELECT MAX(home_goal + away_goal)
+     FROM match
+     WHERE season = main.season
+         -- Nested subquery to get country_id for Premier League
+         AND country_id IN (SELECT country_id
+                            FROM League
+                            WHERE name='England Premier League')
+    ) AS pl_max_goals
+FROM match AS main
+GROUP BY season;</pre><div class="callout steps"><p class="callout-title">Execution Order (Inside Out)</p><div class="callout-body"><ol><li><strong>Innermost:</strong> <code>SELECT country_id FROM League WHERE name='England Premier League'</code></li><li><strong>Middle:</strong> Use that country_id to filter matches</li><li><strong>Outer:</strong> Compare overall max to Premier League max</li></ol></div></div></div></details></div><div class="exercise"><h3>Question 2: Multi-Level Nesting</h3><p><strong>Task:</strong> What's the average number of matches per season where a team scored 5+ goals? Build this in 3 steps!</p><div class="callout note"><p class="callout-title">Building Block Approach</p><div class="callout-body"><strong>Step 1:</strong> Find matches with 5+ goals<br> <strong>Step 2:</strong> Count these matches per country/season<br> <strong>Step 3:</strong> Average these counts by country</div></div><details class="solution"><summary>Show Solution</summary><div><h4>Step 1: Find Matches with 5+ Goals</h4><pre class="sql" data-run>SELECT
+    country_id,
+    season,
+    id
+FROM match
+WHERE home_goal &gt;=5 OR away_goal &gt;=5;</pre><h4>Step 2: Count Matches per Country/Season</h4><pre class="sql" data-run>SELECT
+    country_id,
+    season,
+    COUNT(id) AS matches
+FROM (
+    SELECT
+        country_id,
+        season,
+        id
+    FROM match
+    WHERE home_goal &gt;= 5 OR away_goal &gt;= 5)
+    AS subquery
+GROUP BY country_id, season;</pre><h4>Step 3: Average by Country</h4><pre class="sql" data-run>SELECT
+    c.name AS country,
+    -- Calculate the average matches per season
+    AVG(outer_s.matches) AS avg_seasonal_high_scores
+FROM country AS c
+-- Left join outer_s to country
+LEFT JOIN (
+    SELECT country_id, season,
+        COUNT(id) AS matches
+    FROM (  -- INNER SUBQUERY
+        SELECT country_id, season, id
+        FROM match
+        WHERE home_goal &gt;= 5 OR away_goal &gt;= 5) AS inner_s
+    -- Close parentheses and alias the subquery
+    GROUP BY country_id, season) AS outer_s
+    ON c.id = outer_s.country_id
+GROUP BY country;</pre><div class="callout tip"><p class="callout-title">Pro Tip</p><div class="callout-body">When writing nested subqueries:<br> 1. Start with the innermost query<br> 2. Test it independently<br> 3. Wrap it in the next level<br> 4. Test again<br> 5. Continue building outward</div></div><div class="callout note"><p class="callout-title">What We Built</p><div class="callout-body"><strong>Inner subquery (inner_s):</strong> Filters high-scoring matches<br> <strong>Outer subquery (outer_s):</strong> Counts matches per country/season<br> <strong>Main query:</strong> Joins to country table and averages</div></div></div></details></div>
+</section>
+</article>

@@ -1,0 +1,165 @@
+<article class="module" data-module="window-functions" data-title="Window Functions" data-level="Intermediate" data-blurb="Rank, compare and run totals across rows without collapsing them, using OVER, PARTITION BY and frames.">
+<section class="topic" id="intro" data-title="Introduction: The GROUP BY Problem">
+<div class="callout data"><div class="callout-body"><p class="callout-title">Our Sample Database: Soccer Matches</p><p>All examples use these tables. Study them carefully!</p><div class="grid-2"><div><div class="table-wrap"><table><caption>matches</caption><thead><tr><th>match_id</th><th>match_date</th><th>team</th><th>opponent</th><th>goals_scored</th><th>goals_conceded</th><th>season</th></tr></thead><tbody><tr><td>1</td><td>2023-08-15</td><td>Arsenal</td><td>Liverpool</td><td>3</td><td>1</td><td>2023/24</td></tr><tr><td>2</td><td>2023-08-22</td><td>Arsenal</td><td>Chelsea</td><td>2</td><td>2</td><td>2023/24</td></tr><tr><td>3</td><td>2023-08-29</td><td>Arsenal</td><td>Man City</td><td>1</td><td>3</td><td>2023/24</td></tr><tr><td>4</td><td>2023-09-05</td><td>Arsenal</td><td>Spurs</td><td>4</td><td>0</td><td>2023/24</td></tr><tr><td>5</td><td>2023-08-16</td><td>Liverpool</td><td>Chelsea</td><td>2</td><td>1</td><td>2023/24</td></tr><tr><td>6</td><td>2023-08-23</td><td>Liverpool</td><td>Man City</td><td>1</td><td>1</td><td>2023/24</td></tr><tr><td>7</td><td>2023-08-17</td><td>Chelsea</td><td>Spurs</td><td>3</td><td>2</td><td>2023/24</td></tr><tr><td>8</td><td>2024-08-20</td><td>Arsenal</td><td>Liverpool</td><td>2</td><td>0</td><td>2024/25</td></tr><tr><td>9</td><td>2024-08-27</td><td>Arsenal</td><td>Chelsea</td><td>3</td><td>1</td><td>2024/25</td></tr><tr><td>10</td><td>2024-08-21</td><td>Liverpool</td><td>Man City</td><td>1</td><td>2</td><td>2024/25</td></tr></tbody></table></div></div><div><div class="table-wrap"><table><caption>teams</caption><thead><tr><th>team_id</th><th>team_name</th><th>city</th><th>stadium</th></tr></thead><tbody><tr><td>1</td><td>Arsenal</td><td>London</td><td>Emirates</td></tr><tr><td>2</td><td>Liverpool</td><td>Liverpool</td><td>Anfield</td></tr><tr><td>3</td><td>Chelsea</td><td>London</td><td>Stamford Bridge</td></tr><tr><td>4</td><td>Man City</td><td>Manchester</td><td>Etihad</td></tr><tr><td>5</td><td>Spurs</td><td>London</td><td>Tottenham</td></tr></tbody></table></div><div class="table-wrap"><table><caption>seasons</caption><thead><tr><th>season_id</th><th>season_name</th><th>start_date</th><th>end_date</th></tr></thead><tbody><tr><td>1</td><td>2023/24</td><td>2023-08-01</td><td>2024-05-31</td></tr><tr><td>2</td><td>2024/25</td><td>2024-08-01</td><td>2025-05-31</td></tr></tbody></table></div></div></div></div></div><div class="callout warn"><p class="callout-title">Problem: Can't Mix Aggregate and Non-Aggregate Data</p><div class="callout-body"><p>When you use GROUP BY, you collapse rows. You can't see individual match details alongside aggregate statistics.</p></div></div><div class="exercise"><h3>Example: GROUP BY Limitation</h3><p><strong>Question:</strong> Show each team's average goals scored.</p><pre class="sql" data-run>SELECT
+    team,
+    AVG(goals_scored) AS avg_goals
+FROM matches
+GROUP BY team;</pre><div class="viz"><p class="viz-step">Output</p><div class="table-wrap"><table><thead><tr><th>team</th><th>avg_goals</th></tr></thead><tbody><tr><td>Arsenal</td><td>2.50</td></tr><tr><td>Liverpool</td><td>1.33</td></tr><tr><td>Chelsea</td><td>3.00</td></tr></tbody></table></div></div><div class="callout warn"><p class="callout-title">Problem</p><div class="callout-body">We lost all the individual match details! We can only see aggregated data.<br> <strong>We can't answer:</strong> "Show each match with its goals AND how it compares to the team's average"</div></div></div><div class="callout tip"><p class="callout-title">Solution: Window Functions!</p><div class="callout-body"><p>Window functions let you keep ALL rows while adding aggregate calculations!</p></div></div><div class="exercise"><h3>Same Question with Window Functions</h3><p><strong>Question:</strong> Show each match with goals scored AND team's average.</p><pre class="sql" data-run>SELECT
+    match_id,
+    team,
+    goals_scored,
+    AVG(goals_scored) OVER(PARTITION BY team) AS team_avg
+FROM matches;</pre><div class="viz"><p class="viz-step">Output - All Rows Preserved!</p><div class="table-wrap"><table><thead><tr><th>match_id</th><th>team</th><th>goals_scored</th><th>team_avg</th></tr></thead><tbody><tr><td>1</td><td>Arsenal</td><td>3</td><td class="hl">2.50</td></tr><tr><td>2</td><td>Arsenal</td><td>2</td><td class="hl">2.50</td></tr><tr><td>3</td><td>Arsenal</td><td>1</td><td class="hl">2.50</td></tr><tr><td>4</td><td>Arsenal</td><td>4</td><td class="hl">2.50</td></tr><tr><td>5</td><td>Liverpool</td><td>2</td><td class="hl">1.33</td></tr><tr><td>6</td><td>Liverpool</td><td>1</td><td class="hl">1.33</td></tr><tr><td>7</td><td>Chelsea</td><td>3</td><td class="hl">3.00</td></tr></tbody></table></div><div class="callout tip"><p class="callout-title">Notice</p><div class="callout-body">All 7 rows are kept! Each row shows individual match data PLUS the team's average.</div></div></div></div>
+</section>
+<section class="topic" id="over-basic" data-title="OVER Clause - The Foundation">
+<div class="callout def"><p class="callout-title">OVER()</p><div class="callout-body">Defines the "window" (set of rows) for the calculation. An empty OVER() means "all rows in the result."</div></div><div class="exercise"><h3>Example 1: Overall Average Goals</h3><p><strong>Question:</strong> Show each match with overall average goals scored across ALL matches.</p><pre class="sql" data-run>SELECT
+    match_id,
+    team,
+    goals_scored,
+    AVG(goals_scored) OVER() AS overall_avg
+FROM matches
+WHERE season = '2023/24'
+ORDER BY match_id;</pre><div class="viz"><p class="viz-step">Step 1: Data Without Window Function</p><div class="table-wrap"><table><thead><tr><th>match_id</th><th>team</th><th>goals_scored</th></tr></thead><tbody><tr><td>1</td><td>Arsenal</td><td>3</td></tr><tr><td>2</td><td>Arsenal</td><td>2</td></tr><tr><td>3</td><td>Arsenal</td><td>1</td></tr><tr><td>4</td><td>Arsenal</td><td>4</td></tr><tr><td>5</td><td>Liverpool</td><td>2</td></tr><tr><td>6</td><td>Liverpool</td><td>1</td></tr><tr><td>7</td><td>Chelsea</td><td>3</td></tr></tbody></table></div><div class="viz-arrow" aria-hidden="true">↓</div><p class="viz-step">Step 2: Calculate AVG(3,2,1,4,2,1,3) = 2.29</p><div class="frame"><strong>Window = ALL 7 rows</strong><br> AVG(goals_scored) = (3+2+1+4+2+1+3) / 7 = <strong>2.29</strong></div><div class="viz-arrow" aria-hidden="true">↓</div><p class="viz-step">Step 3: Add that value to EVERY row</p><div class="table-wrap"><table><thead><tr><th>match_id</th><th>team</th><th>goals_scored</th><th>overall_avg</th></tr></thead><tbody><tr><td>1</td><td>Arsenal</td><td>3</td><td class="hl">2.29</td></tr><tr><td>2</td><td>Arsenal</td><td>2</td><td class="hl">2.29</td></tr><tr><td>3</td><td>Arsenal</td><td>1</td><td class="hl">2.29</td></tr><tr><td>4</td><td>Arsenal</td><td>4</td><td class="hl">2.29</td></tr><tr><td>5</td><td>Liverpool</td><td>2</td><td class="hl">2.29</td></tr><tr><td>6</td><td>Liverpool</td><td>1</td><td class="hl">2.29</td></tr><tr><td>7</td><td>Chelsea</td><td>3</td><td class="hl">2.29</td></tr></tbody></table></div></div><div class="callout note"><p class="callout-title">Key Insight</p><div class="callout-body">The overall_avg is the SAME for every row because OVER() includes all rows in the calculation.</div></div></div><div class="exercise"><h3>Example 2: Total Goals Across All Matches</h3><p><strong>Question:</strong> Show each match with the total goals scored in ALL matches.</p><pre class="sql" data-run>SELECT
+    match_id,
+    team,
+    opponent,
+    goals_scored,
+    SUM(goals_scored) OVER() AS total_goals_all_matches
+FROM matches
+WHERE season = '2023/24'
+ORDER BY match_id;</pre><div class="viz"><p class="viz-step">Output</p><div class="table-wrap"><table><thead><tr><th>match_id</th><th>team</th><th>opponent</th><th>goals_scored</th><th>total_goals_all_matches</th></tr></thead><tbody><tr><td>1</td><td>Arsenal</td><td>Liverpool</td><td>3</td><td class="hl">16</td></tr><tr><td>2</td><td>Arsenal</td><td>Chelsea</td><td>2</td><td class="hl">16</td></tr><tr><td>3</td><td>Arsenal</td><td>Man City</td><td>1</td><td class="hl">16</td></tr><tr><td>4</td><td>Arsenal</td><td>Spurs</td><td>4</td><td class="hl">16</td></tr><tr><td>5</td><td>Liverpool</td><td>Chelsea</td><td>2</td><td class="hl">16</td></tr><tr><td>6</td><td>Liverpool</td><td>Man City</td><td>1</td><td class="hl">16</td></tr><tr><td>7</td><td>Chelsea</td><td>Spurs</td><td>3</td><td class="hl">16</td></tr></tbody></table></div><div class="callout tip"><p class="callout-title">Calculation</p><div class="callout-body">SUM(3+2+1+4+2+1+3) = 16 appears in every row</div></div></div></div>
+</section>
+<section class="topic" id="rank" data-title="RANK() - Ordering Data">
+<div class="callout def"><p class="callout-title">RANK()</p><div class="callout-body">Assigns a ranking number to each row based on ORDER BY. Equal values get the same rank, with gaps.</div></div><div class="exercise"><h3>Example 1: Rank Matches by Goals Scored</h3><p><strong>Question:</strong> Rank all matches by goals scored (highest to lowest).</p><pre class="sql" data-run>SELECT
+    match_id,
+    team,
+    goals_scored,
+    RANK() OVER(ORDER BY goals_scored DESC) AS goal_rank
+FROM matches
+WHERE season = '2023/24';</pre><div class="viz"><p class="viz-step">Step 1: Order by goals_scored DESC</p><div class="table-wrap"><table><thead><tr><th>match_id</th><th>team</th><th>goals_scored</th></tr></thead><tbody><tr class="hl"><td>4</td><td>Arsenal</td><td>4</td></tr><tr><td>1</td><td>Arsenal</td><td>3</td></tr><tr><td>7</td><td>Chelsea</td><td>3</td></tr><tr><td>2</td><td>Arsenal</td><td>2</td></tr><tr><td>5</td><td>Liverpool</td><td>2</td></tr><tr><td>3</td><td>Arsenal</td><td>1</td></tr><tr><td>6</td><td>Liverpool</td><td>1</td></tr></tbody></table></div><div class="viz-arrow" aria-hidden="true">↓</div><p class="viz-step">Step 2: Assign Ranks</p><div class="table-wrap"><table><thead><tr><th>match_id</th><th>team</th><th>goals_scored</th><th>goal_rank</th></tr></thead><tbody><tr><td>4</td><td>Arsenal</td><td>4</td><td class="hl">1</td></tr><tr><td>1</td><td>Arsenal</td><td>3</td><td class="hl">2</td></tr><tr><td>7</td><td>Chelsea</td><td>3</td><td class="hl">2</td></tr><tr><td>2</td><td>Arsenal</td><td>2</td><td class="hl">4</td></tr><tr><td>5</td><td>Liverpool</td><td>2</td><td class="hl">4</td></tr><tr><td>3</td><td>Arsenal</td><td>1</td><td class="hl">6</td></tr><tr><td>6</td><td>Liverpool</td><td>1</td><td class="hl">6</td></tr></tbody></table></div><div class="callout note"><p class="callout-title">Notice</p><div class="callout-body">• Rank 1: Only match with 4 goals<br> • Rank 2-2: TWO matches tied with 3 goals (both get rank 2)<br> • Rank 4-4: TWO matches tied with 2 goals (rank jumps to 4, skipping 3!)<br> • Rank 6-6: TWO matches tied with 1 goal (rank jumps to 6, skipping 5!)</div></div></div></div><div class="exercise"><h3>Example 2: Rank Teams by Average Goals</h3><p><strong>Question:</strong> Calculate each team's average goals and rank them.</p><pre class="sql" data-run>SELECT
+    team,
+    AVG(goals_scored) AS avg_goals,
+    RANK() OVER(ORDER BY AVG(goals_scored) DESC) AS team_rank
+FROM matches
+WHERE season = '2023/24'
+GROUP BY team;</pre><div class="viz"><p class="viz-step">Output</p><div class="table-wrap"><table><thead><tr><th>team</th><th>avg_goals</th><th>team_rank</th></tr></thead><tbody><tr><td>Chelsea</td><td>3.00</td><td class="hl">1</td></tr><tr><td>Arsenal</td><td>2.50</td><td class="hl">2</td></tr><tr><td>Liverpool</td><td>1.50</td><td class="hl">3</td></tr></tbody></table></div></div></div>
+</section>
+<section class="topic" id="partition" data-title="PARTITION BY - Divide and Calculate">
+<div class="callout def"><p class="callout-title">PARTITION BY</p><div class="callout-body">Divides rows into groups and performs the window function separately on each group. Unlike GROUP BY, it doesn't collapse rows!</div></div><div class="exercise"><h3>Example 1: Team Average Goals (PARTITION BY team)</h3><p><strong>Question:</strong> Show each match with that team's average goals.</p><pre class="sql" data-run>SELECT
+    match_id,
+    team,
+    goals_scored,
+    AVG(goals_scored) OVER(PARTITION BY team) AS team_avg
+FROM matches
+WHERE season = '2023/24'
+ORDER BY team, match_id;</pre><div class="viz"><p class="viz-step">Step 1: Divide into Partitions by Team</p><div class="frame"><strong>Partition 1: Arsenal</strong><div class="table-wrap"><table><thead><tr><th>match_id</th><th>goals_scored</th></tr></thead><tbody><tr><td>1</td><td>3</td></tr><tr><td>2</td><td>2</td></tr><tr><td>3</td><td>1</td></tr><tr><td>4</td><td>4</td></tr></tbody></table></div><strong>AVG = (3+2+1+4)/4 = 2.50</strong></div><div class="frame"><strong>Partition 2: Liverpool</strong><div class="table-wrap"><table><thead><tr><th>match_id</th><th>goals_scored</th></tr></thead><tbody><tr><td>5</td><td>2</td></tr><tr><td>6</td><td>1</td></tr></tbody></table></div><strong>AVG = (2+1)/2 = 1.50</strong></div><div class="frame"><strong>Partition 3: Chelsea</strong><div class="table-wrap"><table><thead><tr><th>match_id</th><th>goals_scored</th></tr></thead><tbody><tr><td>7</td><td>3</td></tr></tbody></table></div><strong>AVG = 3/1 = 3.00</strong></div><div class="viz-arrow" aria-hidden="true">↓</div><p class="viz-step">Step 2: Add Average to Each Row in Its Partition</p><div class="table-wrap"><table><thead><tr><th>match_id</th><th>team</th><th>goals_scored</th><th>team_avg</th></tr></thead><tbody><tr><td>1</td><td>Arsenal</td><td>3</td><td class="hl">2.50</td></tr><tr><td>2</td><td>Arsenal</td><td>2</td><td class="hl">2.50</td></tr><tr><td>3</td><td>Arsenal</td><td>1</td><td class="hl">2.50</td></tr><tr><td>4</td><td>Arsenal</td><td>4</td><td class="hl">2.50</td></tr><tr><td>7</td><td>Chelsea</td><td>3</td><td class="hl">3.00</td></tr><tr><td>5</td><td>Liverpool</td><td>2</td><td class="hl">1.50</td></tr><tr><td>6</td><td>Liverpool</td><td>1</td><td class="hl">1.50</td></tr></tbody></table></div></div></div><div class="exercise"><h3>Example 2: RANK Within Each Team</h3><p><strong>Question:</strong> Rank each team's matches by goals (best performance per team).</p><pre class="sql" data-run>SELECT
+    match_id,
+    team,
+    goals_scored,
+    RANK() OVER(PARTITION BY team ORDER BY goals_scored DESC) AS rank_in_team
+FROM matches
+WHERE season = '2023/24'
+ORDER BY team, rank_in_team;</pre><div class="viz"><p class="viz-step">Output - Each Team Ranked Separately!</p><div class="table-wrap"><table><thead><tr><th>match_id</th><th>team</th><th>goals_scored</th><th>rank_in_team</th></tr></thead><tbody><tr class="hl"><td>4</td><td>Arsenal</td><td>4</td><td class="hl">1</td></tr><tr><td>1</td><td>Arsenal</td><td>3</td><td>2</td></tr><tr><td>2</td><td>Arsenal</td><td>2</td><td>3</td></tr><tr><td>3</td><td>Arsenal</td><td>1</td><td>4</td></tr><tr class="hl"><td>7</td><td>Chelsea</td><td>3</td><td class="hl">1</td></tr><tr class="hl"><td>5</td><td>Liverpool</td><td>2</td><td class="hl">1</td></tr><tr><td>6</td><td>Liverpool</td><td>1</td><td>2</td></tr></tbody></table></div><div class="callout note"><p class="callout-title">Key Insight</p><div class="callout-body">Ranking restarts for each team! Arsenal's best is rank 1, Chelsea's best is rank 1, Liverpool's best is rank 1.</div></div></div></div><div class="exercise"><h3>Example 3: Multiple Partitions (Team AND Season)</h3><p><strong>Question:</strong> Calculate average goals per team per season.</p><pre class="sql" data-run>SELECT
+    match_id,
+    team,
+    season,
+    goals_scored,
+    AVG(goals_scored) OVER(PARTITION BY team, season) AS team_season_avg
+FROM matches
+ORDER BY team, season, match_id;</pre><div class="viz"><p class="viz-step">Output - Partitioned by BOTH team AND season</p><div class="table-wrap"><table><thead><tr><th>match_id</th><th>team</th><th>season</th><th>goals_scored</th><th>team_season_avg</th></tr></thead><tbody><tr><td>1</td><td>Arsenal</td><td>2023/24</td><td>3</td><td class="hl">2.50</td></tr><tr><td>2</td><td>Arsenal</td><td>2023/24</td><td>2</td><td class="hl">2.50</td></tr><tr><td>3</td><td>Arsenal</td><td>2023/24</td><td>1</td><td class="hl">2.50</td></tr><tr><td>4</td><td>Arsenal</td><td>2023/24</td><td>4</td><td class="hl">2.50</td></tr><tr><td>8</td><td>Arsenal</td><td>2024/25</td><td>2</td><td class="hl">2.50</td></tr><tr><td>9</td><td>Arsenal</td><td>2024/25</td><td>3</td><td class="hl">2.50</td></tr><tr><td>5</td><td>Liverpool</td><td>2023/24</td><td>2</td><td class="hl">1.50</td></tr><tr><td>6</td><td>Liverpool</td><td>2023/24</td><td>1</td><td class="hl">1.50</td></tr><tr><td>10</td><td>Liverpool</td><td>2024/25</td><td>1</td><td class="hl">1.00</td></tr></tbody></table></div><div class="callout tip"><p class="callout-title">Notice</p><div class="callout-body">Arsenal's 2023/24 average (2.50) is different from their 2024/25 average (2.50 coincidentally the same, but calculated separately). Liverpool 2023/24 (1.50) vs 2024/25 (1.00).</div></div></div></div>
+</section>
+<section class="topic" id="sliding" data-title="Sliding Windows - Running Calculations">
+<div class="callout def"><p class="callout-title">Sliding Window</p><div class="callout-body">A moving frame of rows for calculating running totals, moving averages, etc.</div></div><div class="card"><h3>Syntax: ROWS BETWEEN</h3><pre class="sql">FUNCTION() OVER(
+    ORDER BY column
+    ROWS BETWEEN &lt;start&gt; AND &lt;end&gt;
+)</pre><p><strong>Keywords:</strong></p><ul><li><code>UNBOUNDED PRECEDING</code> - From the very first row</li><li><code>CURRENT ROW</code> - Up to the current row</li><li><code>N PRECEDING</code> - N rows before current</li><li><code>N FOLLOWING</code> - N rows after current</li></ul></div><div class="exercise"><h3>Example 1: Running Total of Arsenal Goals</h3><p><strong>Question:</strong> Show Arsenal's cumulative goals through the season.</p><pre class="sql" data-run>SELECT
+    match_id,
+    match_date,
+    goals_scored,
+    SUM(goals_scored) OVER(
+        ORDER BY match_date
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS running_total
+FROM matches
+WHERE team = 'Arsenal' AND season = '2023/24'
+ORDER BY match_date;</pre><div class="viz"><p class="viz-step">Step-by-Step Execution</p><div class="table-wrap"><table><thead><tr><th>match_id</th><th>match_date</th><th>goals_scored</th><th>Window</th><th>running_total</th></tr></thead><tbody><tr class="hl"><td>1</td><td>2023-08-15</td><td>3</td><td>SUM(3)</td><td class="hl">3</td></tr><tr class="hl"><td>2</td><td>2023-08-22</td><td>2</td><td>SUM(3, 2)</td><td class="hl">5</td></tr><tr class="hl"><td>3</td><td>2023-08-29</td><td>1</td><td>SUM(3, 2, 1)</td><td class="hl">6</td></tr><tr class="hl"><td>4</td><td>2023-09-05</td><td>4</td><td>SUM(3, 2, 1, 4)</td><td class="hl">10</td></tr></tbody></table></div><div class="callout note"><p class="callout-title">How It Works</p><div class="callout-body">• Match 1: Window = [3] → Total = 3<br> • Match 2: Window = [3, 2] → Total = 5<br> • Match 3: Window = [3, 2, 1] → Total = 6<br> • Match 4: Window = [3, 2, 1, 4] → Total = 10</div></div></div></div><div class="exercise"><h3>Example 2: 3-Match Moving Average</h3><p><strong>Question:</strong> Calculate Arsenal's average goals over the last 3 matches.</p><pre class="sql" data-run>SELECT
+    match_id,
+    match_date,
+    goals_scored,
+    AVG(goals_scored) OVER(
+        ORDER BY match_date
+        ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+    ) AS moving_avg_3
+FROM matches
+WHERE team = 'Arsenal' AND season = '2023/24'
+ORDER BY match_date;</pre><div class="viz"><p class="viz-step">Visual Explanation - The Window "Slides"</p><div class="table-wrap"><table><thead><tr><th>match_id</th><th>match_date</th><th>goals_scored</th><th>Window (last 3)</th><th>moving_avg_3</th></tr></thead><tbody><tr><td>1</td><td>2023-08-15</td><td>3</td><td class="frame">AVG(3)</td><td class="hl">3.00</td></tr><tr><td>2</td><td>2023-08-22</td><td>2</td><td class="frame">AVG(3, 2)</td><td class="hl">2.50</td></tr><tr><td>3</td><td>2023-08-29</td><td>1</td><td class="frame">AVG(3, 2, 1)</td><td class="hl">2.00</td></tr><tr class="hl"><td>4</td><td>2023-09-05</td><td>4</td><td class="frame">AVG(2, 1, 4) ← Window slides!</td><td class="hl">2.33</td></tr></tbody></table></div><div class="callout tip"><p class="callout-title">The "Sliding" Part</p><div class="callout-body">• Rows 1-3: Window is smaller (not enough previous rows)<br> • Row 4: Window = [row 2, row 3, row 4] - it SLIDES!<br> • The window always looks at current + 2 preceding rows</div></div></div></div><div class="exercise"><h3>Example 3: Running Average</h3><p><strong>Question:</strong> Show Arsenal's average goals per match so far in the season.</p><pre class="sql" data-run>SELECT
+    match_id,
+    match_date,
+    goals_scored,
+    AVG(goals_scored) OVER(
+        ORDER BY match_date
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS running_avg
+FROM matches
+WHERE team = 'Arsenal' AND season = '2023/24'
+ORDER BY match_date;</pre><div class="viz"><p class="viz-step">Output</p><div class="table-wrap"><table><thead><tr><th>match_id</th><th>match_date</th><th>goals_scored</th><th>Calculation</th><th>running_avg</th></tr></thead><tbody><tr><td>1</td><td>2023-08-15</td><td>3</td><td>AVG(3) = 3/1</td><td class="hl">3.00</td></tr><tr><td>2</td><td>2023-08-22</td><td>2</td><td>AVG(3,2) = 5/2</td><td class="hl">2.50</td></tr><tr><td>3</td><td>2023-08-29</td><td>1</td><td>AVG(3,2,1) = 6/3</td><td class="hl">2.00</td></tr><tr><td>4</td><td>2023-09-05</td><td>4</td><td>AVG(3,2,1,4) = 10/4</td><td class="hl">2.50</td></tr></tbody></table></div></div></div>
+</section>
+<section class="topic" id="advanced" data-title="Advanced Examples - Combining Concepts">
+<div class="exercise"><h3>Example 1: Compare Individual Match to Team Average</h3><p><strong>Question:</strong> Show each match with difference from team's average.</p><pre class="sql" data-run>SELECT
+    match_id,
+    team,
+    goals_scored,
+    AVG(goals_scored) OVER(PARTITION BY team) AS team_avg,
+    goals_scored - AVG(goals_scored) OVER(PARTITION BY team) AS diff_from_avg
+FROM matches
+WHERE season = '2023/24'
+ORDER BY team, match_id;</pre><div class="viz"><p class="viz-step">Output</p><div class="table-wrap"><table><thead><tr><th>match_id</th><th>team</th><th>goals_scored</th><th>team_avg</th><th>diff_from_avg</th></tr></thead><tbody><tr><td>1</td><td>Arsenal</td><td>3</td><td>2.50</td><td class="hl">+0.50</td></tr><tr><td>2</td><td>Arsenal</td><td>2</td><td>2.50</td><td class="hl">-0.50</td></tr><tr><td>3</td><td>Arsenal</td><td>1</td><td>2.50</td><td class="hl">-1.50</td></tr><tr class="hl"><td>4</td><td>Arsenal</td><td>4</td><td>2.50</td><td class="hl">+1.50</td></tr><tr><td>7</td><td>Chelsea</td><td>3</td><td>3.00</td><td class="hl">0.00</td></tr><tr><td>5</td><td>Liverpool</td><td>2</td><td>1.50</td><td class="hl">+0.50</td></tr><tr><td>6</td><td>Liverpool</td><td>1</td><td>1.50</td><td class="hl">-0.50</td></tr></tbody></table></div><div class="callout tip"><p class="callout-title">Insight</p><div class="callout-body">Match 4 (Arsenal 4 goals) was +1.50 above their average - their best performance!</div></div></div></div><div class="exercise"><h3>Example 2: Rank + Partition Combined</h3><p><strong>Question:</strong> For each team, find their top 2 scoring matches.</p><pre class="sql" data-run>WITH ranked_matches AS (
+    SELECT
+        match_id,
+        team,
+        opponent,
+        goals_scored,
+        RANK() OVER(
+            PARTITION BY team
+            ORDER BY goals_scored DESC
+        ) AS rank_in_team
+    FROM matches
+    WHERE season = '2023/24'
+)
+SELECT *
+FROM ranked_matches
+WHERE rank_in_team &lt;= 2
+ORDER BY team, rank_in_team;</pre><div class="viz"><p class="viz-step">Output - Top 2 Matches Per Team</p><div class="table-wrap"><table><thead><tr><th>match_id</th><th>team</th><th>opponent</th><th>goals_scored</th><th>rank_in_team</th></tr></thead><tbody><tr class="hl"><td>4</td><td>Arsenal</td><td>Spurs</td><td>4</td><td>1</td></tr><tr class="hl"><td>1</td><td>Arsenal</td><td>Liverpool</td><td>3</td><td>2</td></tr><tr class="hl"><td>7</td><td>Chelsea</td><td>Spurs</td><td>3</td><td>1</td></tr><tr class="hl"><td>5</td><td>Liverpool</td><td>Chelsea</td><td>2</td><td>1</td></tr><tr class="hl"><td>6</td><td>Liverpool</td><td>Man City</td><td>1</td><td>2</td></tr></tbody></table></div></div></div><div class="exercise"><h3>Example 3: Compare Current vs Previous Match</h3><p><strong>Question:</strong> Show goals scored in current match vs previous match.</p><pre class="sql" data-run>SELECT
+    match_id,
+    match_date,
+    team,
+    goals_scored,
+    LAG(goals_scored) OVER(
+        PARTITION BY team
+        ORDER BY match_date
+    ) AS previous_match_goals,
+    goals_scored - LAG(goals_scored) OVER(
+        PARTITION BY team
+        ORDER BY match_date
+    ) AS change
+FROM matches
+WHERE team = 'Arsenal' AND season = '2023/24'
+ORDER BY match_date;</pre><div class="viz"><p class="viz-step">Output</p><div class="table-wrap"><table><thead><tr><th>match_id</th><th>match_date</th><th>team</th><th>goals_scored</th><th>previous_match_goals</th><th>change</th></tr></thead><tbody><tr><td>1</td><td>2023-08-15</td><td>Arsenal</td><td>3</td><td>NULL</td><td>NULL</td></tr><tr><td>2</td><td>2023-08-22</td><td>Arsenal</td><td>2</td><td>3</td><td class="hl">-1</td></tr><tr><td>3</td><td>2023-08-29</td><td>Arsenal</td><td>1</td><td>2</td><td class="hl">-1</td></tr><tr><td>4</td><td>2023-09-05</td><td>Arsenal</td><td>4</td><td>1</td><td class="hl">+3</td></tr></tbody></table></div><div class="callout note"><p class="callout-title">LAG() Function</p><div class="callout-body">Gets the value from the PREVIOUS row. Perfect for comparing trends!</div></div></div></div><div class="exercise"><h3>Example 4: Complete Performance Dashboard</h3><p><strong>Question:</strong> Create a comprehensive view with multiple window functions.</p><pre class="sql" data-run>SELECT
+    match_id,
+    match_date,
+    team,
+    goals_scored,
+    -- Team statistics
+    AVG(goals_scored) OVER(PARTITION BY team) AS team_avg,
+    RANK() OVER(PARTITION BY team ORDER BY goals_scored DESC) AS rank_in_team,
+    -- Running statistics
+    SUM(goals_scored) OVER(
+        PARTITION BY team
+        ORDER BY match_date
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS running_total
+FROM matches
+WHERE team = 'Arsenal' AND season = '2023/24'
+ORDER BY match_date;</pre><div class="viz"><p class="viz-step">Complete Dashboard Output</p><div class="table-wrap"><table><thead><tr><th>match_id</th><th>date</th><th>team</th><th>goals</th><th>team_avg</th><th>rank_in_team</th><th>running_total</th></tr></thead><tbody><tr><td>1</td><td>2023-08-15</td><td>Arsenal</td><td>3</td><td>2.50</td><td>2</td><td class="hl">3</td></tr><tr><td>2</td><td>2023-08-22</td><td>Arsenal</td><td>2</td><td>2.50</td><td>3</td><td class="hl">5</td></tr><tr><td>3</td><td>2023-08-29</td><td>Arsenal</td><td>1</td><td>2.50</td><td>4</td><td class="hl">6</td></tr><tr><td>4</td><td>2023-09-05</td><td>Arsenal</td><td>4</td><td>2.50</td><td>1</td><td class="hl">10</td></tr></tbody></table></div><div class="callout tip"><p class="callout-title">Multiple Window Functions in One Query!</p><div class="callout-body">• team_avg: Same for all Arsenal matches<br> • rank_in_team: Best match is rank 1<br> • running_total: Cumulative goals through season</div></div></div></div>
+</section>
+</article>
