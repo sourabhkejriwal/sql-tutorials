@@ -28,6 +28,7 @@
   var flat = [];            // all topics in order
   var progress = loadJSON('sqlt.progress', {});
   var view = $('#view');
+  var shownTopic = null;    // topic currently on screen
 
   function loadJSON(key, fallback) {
     try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch (e) { return fallback; }
@@ -130,12 +131,33 @@
     hideSearch();
     var h = location.hash.replace(/^#\/?/, '');
     var parts = h.split('/').filter(Boolean);
-    if (!parts.length) return renderHome();
-    if (parts[0] === 'playground') return renderPlayground();
+    if (!parts.length) { shownTopic = null; return renderHome(); }
+    if (parts[0] === 'playground') { shownTopic = null; return renderPlayground(); }
     var m = course.filter(function (x) { return x.slug === parts[0]; })[0];
-    if (!m) return renderHome();
+    if (!m) { shownTopic = null; return renderHome(); }
     var t = m.topics.filter(function (x) { return x.id === parts[1]; })[0] || m.topics[0];
-    renderTopic(t);
+    if (t === shownTopic) return;
+    var dir = shownTopic ? (t.flatIndex > shownTopic.flatIndex ? 'fwd' : 'back') : null;
+    swapView(dir, function () { renderTopic(t); });
+  }
+
+  /* Page transition: the old page slides out, the new one slides in from the
+     direction of travel. The jump to the top happens while the view is hidden. */
+  var reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  var swapToken = 0;
+  function swapView(dir, render) {
+    var token = ++swapToken;
+    view.classList.remove('leave-fwd', 'leave-back', 'enter-fwd', 'enter-back');
+    if (!dir || reduceMotion.matches) return render();
+    void view.offsetWidth; // restart animation if one is mid-flight
+    view.classList.add('leave-' + dir);
+    setTimeout(function () {
+      if (token !== swapToken) return;
+      view.classList.remove('leave-' + dir);
+      render();
+      view.classList.add('enter-' + dir);
+      setTimeout(function () { if (token === swapToken) view.classList.remove('enter-' + dir); }, 400);
+    }, 170);
   }
 
   function setCrumbs(items) {
@@ -146,8 +168,8 @@
     }).join('');
   }
 
-  function afterRender(focusTop) {
-    window.scrollTo(0, 0);
+  function afterRender(focusTop, keepScroll) {
+    if (!keepScroll) window.scrollTo(0, 0);
     if (focusTop) view.focus({ preventScroll: true });
     updateReadProgress();
   }
@@ -213,8 +235,9 @@
   }
 
   /* ------------------------------------------------------------------ topic */
-  function renderTopic(t) {
+  function renderTopic(t, keepScroll) {
     var m = t.module;
+    shownTopic = t;
     localStorage.setItem('sqlt.last', key(t));
     document.title = t.title + ' · ' + m.title + ' · SQL Tutorials';
     setCrumbs([{ label: 'Home', href: '#/' }, { label: m.title, href: '#/' + m.slug }, { label: t.title }]);
@@ -255,24 +278,37 @@
       $('#run-note').remove();
     });
     $('#complete-btn').addEventListener('click', function () {
+      var btn = this;
+      if (btn.classList.contains('is-completing')) return;
       if (isDone(t)) {
         delete progress[key(t)];
         saveProgress();
-        renderTopic(t);
+        renderTopic(t, true);
         toast('Marked as not done');
-      } else {
-        progress[key(t)] = Date.now();
-        saveProgress();
-        if (next) {
-          toast('Nice work — “' + t.title + '” complete');
-          location.hash = '#/' + next.module.slug + '/' + next.id;
-        } else {
-          renderTopic(t);
-          toast('You finished the whole course!');
-        }
+        return;
       }
+      progress[key(t)] = Date.now();
+      saveProgress();
+      // 1. Confirm on the button itself, and tick the topic in the sidebar.
+      btn.classList.add('is-completing');
+      btn.setAttribute('aria-pressed', 'true');
+      btn.innerHTML = '<svg class="check" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="m5 12 5 5 9-10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+        '<span>' + (next ? 'Completed · up next: ' + esc(next.title) : 'Completed') + '</span>';
+      renderOutline(t);
+      var link = $('.topic-link.current');
+      if (link) link.classList.add('just-done');
+      if (!next) {
+        toast('You finished the whole course!');
+        setTimeout(function () { if (shownTopic === t) renderTopic(t, true); }, 900);
+        return;
+      }
+      toast('Nice work — “' + t.title + '” complete');
+      // 2. Let the confirmation register, then slide to the next topic.
+      setTimeout(function () {
+        if (shownTopic === t) location.hash = '#/' + next.module.slug + '/' + next.id;
+      }, reduceMotion.matches ? 0 : 550);
     });
-    afterRender(true);
+    afterRender(!keepScroll, keepScroll);
   }
 
   function pagerLink(t, label, cls) {
@@ -688,6 +724,7 @@
   $('#reset-progress').addEventListener('click', function () {
     if (!flat.some(isDone)) return toast('Nothing to reset yet');
     if (!confirm('Clear your progress for all topics? This cannot be undone.')) return;
+    shownTopic = null;
     progress = {};
     saveProgress();
     route();
