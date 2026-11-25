@@ -542,6 +542,11 @@ details.solution > div > :last-child { margin-bottom: 0; }
   .code-hl, .code-edit textarea { font-size: 13px; padding: 12px; }
   .crumbs > :not([aria-current]), .crumbs .sep { display: none; }
 }
+/* ------------------------------------------------------------------ toast */
+.toast { position: fixed; right: 24px; bottom: 24px; max-width: min(360px, calc(100vw - 32px)); transform: translateY(12px); opacity: 0; pointer-events: none; padding: 10px 16px; border-radius: 10px; background: var(--text); color: var(--bg); font-size: 14px; font-weight: 600; box-shadow: 0 10px 30px rgba(0, 0, 0, .2); transition: opacity .2s, transform .2s; z-index: 60; }
+.toast.show { opacity: 1; transform: translateY(0); }
+@media (max-width: 600px) { .toast { right: 16px; left: 16px; bottom: 16px; max-width: none; } }
+
 /* ---------- page transitions between topics ---------- */
 @keyframes leave-fwd  { to { opacity: 0; transform: translateX(-28px); } }
 @keyframes leave-back { to { opacity: 0; transform: translateX(28px); } }

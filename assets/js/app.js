@@ -569,7 +569,7 @@
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.stopImmediatePropagation(); e.preventDefault(); runCode(wrap, 'playground'); }
     }, true);
     $('#pg-reset').addEventListener('click', function () {
-      SQLRunner.reset('playground').then(function () { refreshSchema(); });
+      SQLRunner.reset('playground').then(function () { refreshSchema(); toast('Practice database reset'); });
       // the schema refresh below also re-runs the open preview
     });
     refreshSchema = function () {
@@ -719,12 +719,13 @@
   });
 
   $('#reset-progress').addEventListener('click', function () {
-    if (!flat.some(isDone)) return;
+    if (!flat.some(isDone)) return toast('Nothing to reset yet');
     if (!confirm('Clear your progress for all topics? This cannot be undone.')) return;
     shownTopic = null;
     progress = {};
     saveProgress();
     route();
+    toast('Progress cleared');
   });
 
   document.addEventListener('keydown', function (e) {
@@ -753,6 +754,15 @@
     $('#read-progress').style.transform = 'scaleX(' + (h > 0 ? Math.min(scrollY / h, 1) : 0) + ')';
   }
   addEventListener('scroll', updateReadProgress, { passive: true });
+
+  var toastTimer;
+  function toast(msg) {
+    var el = $('#toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2400);
+  }
 
 
   /* ------------------------------------------------------------------ start */
