@@ -486,13 +486,27 @@
     var LIMIT = 200;
     return r.sets.map(function (set, i) {
       var rows = set.values;
-      var head = '<thead><tr>' + set.columns.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr></thead>';
+      // A column is numeric when every non-NULL value in it is a number; its header aligns right with the values.
+      var numCol = set.columns.map(function (c, j) {
+        var seen = false;
+        for (var k = 0; k < rows.length; k++) {
+          var v = rows[k][j];
+          if (v === null) continue;
+          if (typeof v !== 'number') return false;
+          seen = true;
+        }
+        return seen;
+      });
+      // Columns hug their content; the empty .fill column takes up the spare width.
+      var head = '<thead><tr>' + set.columns.map(function (c, j) {
+        return '<th' + (numCol[j] ? ' class="num"' : '') + '>' + esc(c) + '</th>';
+      }).join('') + '<th class="fill" aria-hidden="true"></th></tr></thead>';
       var body = '<tbody>' + rows.slice(0, LIMIT).map(function (row) {
-        return '<tr>' + row.map(function (v) {
-          if (v === null) return '<td class="null">NULL</td>';
+        return '<tr>' + row.map(function (v, j) {
+          if (v === null) return '<td class="null' + (numCol[j] ? ' num' : '') + '">NULL</td>';
           if (typeof v === 'number') return '<td class="num">' + (Number.isInteger(v) ? v : Math.round(v * 10000) / 10000) + '</td>';
           return '<td>' + esc(v) + '</td>';
-        }).join('') + '</tr>';
+        }).join('') + '<td class="fill" aria-hidden="true"></td></tr>';
       }).join('') + '</tbody>';
       var count = rows.length + ' row' + (rows.length === 1 ? '' : 's') + (rows.length > LIMIT ? ' (showing first ' + LIMIT + ')' : '');
       return '<div class="res-set">' +
