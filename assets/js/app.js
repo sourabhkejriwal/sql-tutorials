@@ -302,7 +302,6 @@
         setTimeout(function () { if (shownTopic === t) renderTopic(t, true); }, 900);
         return;
       }
-      toast('Nice work — “' + t.title + '” complete');
       // 2. Let the confirmation register, then slide to the next topic.
       setTimeout(function () {
         if (shownTopic === t) location.hash = '#/' + next.module.slug + '/' + next.id;
