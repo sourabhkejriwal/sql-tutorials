@@ -482,7 +482,13 @@ details.solution > div > :last-child { margin-bottom: 0; }
 .schema-group summary::-webkit-details-marker { display: none; }
 .schema-group summary span { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
 .schema-group ul { list-style: none; margin: 0; padding: 0; }
-.schema-group li button { width: 100%; display: flex; justify-content: space-between; gap: 8px; padding: 6px 8px 0; border: 0; background: none; cursor: pointer; border-radius: 6px; text-align: left; }
+.schema-group .trow { display: flex; align-items: flex-start; }
+.schema-group .tprev { flex: 1; min-width: 0; display: flex; justify-content: space-between; gap: 8px; padding: 6px 8px 0; border: 0; background: none; cursor: pointer; border-radius: 6px; text-align: left; }
+.schema-group .tins { flex: none; width: 22px; height: 22px; margin: 4px 4px 0 0; border: 1px solid var(--border); background: var(--surface); color: var(--muted); border-radius: 6px; cursor: pointer; font: 600 14px/1 var(--font); opacity: 0; }
+.schema-group li:hover .tins, .schema-group .tins:focus-visible { opacity: 1; }
+.schema-group .tins:hover { color: var(--accent); border-color: var(--accent); }
+.tcol { border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; border-radius: 3px; }
+.tcol:hover { color: var(--accent); text-decoration: underline; }
 .schema-group li { border-radius: 6px; padding-bottom: 6px; }
 .schema-group li:hover { background: var(--accent-soft); }
 .tname { font: 600 13px var(--mono); color: var(--accent); }
@@ -491,6 +497,9 @@ details.solution > div > :last-child { margin-bottom: 0; }
 .tcols { margin: 2px 8px 0; font: 11.5px/1.45 var(--mono); color: var(--muted); }
 .muted { color: var(--muted); padding: 8px; font-size: 14px; }
 .pg-main .code { margin-top: 0; }
+.pg-main .pg-preview { margin-top: 16px; }
+.pg-preview .pv-name { font: 600 13px var(--mono); color: var(--accent); }
+@media (hover: none) { .schema-group .tins { opacity: 1; } }
 
 /* ------------------------------------------------------------------ toast */
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; padding: 10px 16px; border-radius: 10px; background: var(--text); color: var(--bg); font-size: 14px; font-weight: 600; box-shadow: 0 10px 30px rgba(0, 0, 0, .2); transition: opacity .2s, transform .2s; z-index: 60; }

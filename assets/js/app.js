@@ -483,7 +483,12 @@
       '<div class="pg-grid">' +
       '<aside class="schema" aria-label="Tables"><div class="schema-head"><h2>Tables</h2><button class="text-btn" id="pg-reset" type="button">Reset database</button></div>' +
       '<div id="schema-list" class="schema-list"><p class="muted">Loading tables…</p></div></aside>' +
-      '<div class="pg-main"><pre class="sql editor" id="pg-src"></pre></div>' +
+      '<div class="pg-main"><pre class="sql editor" id="pg-src"></pre>' +
+      '<section class="code pg-preview" id="pg-preview" hidden aria-label="Table preview">' +
+      '<div class="code-bar"><span class="code-lang">Table preview</span><span class="pv-name"></span>' +
+      '<span class="code-actions"><button type="button" class="cb pv-insert" title="Insert the table name at the cursor in your query">Insert name</button>' +
+      '<button type="button" class="cb pv-close" aria-label="Close table preview">Close</button></span></div>' +
+      '<div class="code-result"></div></section></div>' +
       '</div></div>';
     var src = $('#pg-src');
     src.textContent = saved;
@@ -493,6 +498,33 @@
     $('.code-lang', wrap).textContent = 'Playground';
     var ta = $('textarea', wrap);
     ta.addEventListener('input', function () { localStorage.setItem('sqlt.playground', ta.value); });
+    var preview = $('#pg-preview'), previewTable = null;
+    function showPreview(name, scroll) {
+      previewTable = name;
+      preview.hidden = false;
+      $('.pv-name', preview).textContent = name;
+      var out = $('.code-result', preview);
+      if (scroll) out.innerHTML = '<div class="res-status">Loading…</div>';
+      SQLRunner.run('SELECT *\nFROM "' + name.replace(/"/g, '""') + '"\nLIMIT 10;', { db: 'playground' }).then(function (r) {
+        out.innerHTML = renderResult(r, true);
+      }).catch(function (err) {
+        out.innerHTML = '<div class="res-error"><strong>Error</strong><span>' + esc(cleanError(err)) + '</span></div>';
+      }).then(function () {
+        if (scroll) preview.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      });
+    }
+    function insertAtCursor(text) {
+      var s = ta.selectionStart, en = ta.selectionEnd;
+      var before = ta.value.slice(0, s);
+      if (/[\w"]$/.test(before)) text = ' ' + text;
+      ta.value = before + text + ta.value.slice(en);
+      ta.selectionStart = ta.selectionEnd = s + text.length;
+      localStorage.setItem('sqlt.playground', ta.value);
+      syncCode(wrap);
+      ta.focus();
+    }
+    $('.pv-close', preview).addEventListener('click', function () { preview.hidden = true; previewTable = null; });
+    $('.pv-insert', preview).addEventListener('click', function () { if (previewTable) insertAtCursor(previewTable); });
     // swap run handler to use the playground database
     var runBtn = $('.run', wrap);
     var fresh = runBtn.cloneNode(true);
@@ -503,6 +535,7 @@
     }, true);
     $('#pg-reset').addEventListener('click', function () {
       SQLRunner.reset('playground').then(function () { refreshSchema(); toast('Practice database reset'); });
+      // the schema refresh below also re-runs the open preview
     });
     refreshSchema = function () {
       SQLRunner.schema('playground').then(function (tables) {
@@ -517,17 +550,19 @@
         var extra = tables.filter(function (t) { return !used[t.name.toLowerCase()]; });
         if (extra.length) html += schemaGroup('Created by you', 'Tables you added in the playground', extra);
         $('#schema-list').innerHTML = html;
+        if (previewTable) {
+          if (byName[previewTable.toLowerCase()]) showPreview(previewTable, false);
+          else { preview.hidden = true; previewTable = null; }
+        }
       }).catch(function (err) {
         $('#schema-list').innerHTML = '<p class="res-error">' + esc(cleanError(err)) + '</p>';
       });
     };
     $('#schema-list').addEventListener('click', function (e) {
+      var ins = e.target.closest('[data-insert]');
+      if (ins) return insertAtCursor(ins.dataset.insert);
       var b = e.target.closest('[data-table]');
-      if (!b) return;
-      ta.value = 'SELECT *\nFROM ' + b.dataset.table + '\nLIMIT 10;';
-      localStorage.setItem('sqlt.playground', ta.value);
-      syncCode(wrap);
-      runCode(wrap, 'playground');
+      if (b) showPreview(b.dataset.table, true);
     });
     refreshSchema();
     afterRender(false);
@@ -536,9 +571,12 @@
   function schemaGroup(name, note, items) {
     return '<details class="schema-group" open><summary>' + esc(name) + '<span>' + esc(note) + '</span></summary><ul>' +
       items.map(function (t) {
-        return '<li><button type="button" data-table="' + esc(t.name) + '" title="Preview ' + esc(t.name) + '">' +
+        return '<li><div class="trow"><button type="button" class="tprev" data-table="' + esc(t.name) + '" title="Preview ' + esc(t.name) + ' below your query">' +
           '<span class="tname">' + esc(t.name) + (t.type === 'view' ? ' <em>view</em>' : '') + '</span><span class="trows">' + t.rows + ' rows</span></button>' +
-          '<p class="tcols">' + t.columns.map(function (c) { return esc(c.name); }).join(', ') + '</p></li>';
+          '<button type="button" class="tins" data-insert="' + esc(t.name) + '" title="Insert ' + esc(t.name) + ' into your query" aria-label="Insert ' + esc(t.name) + ' into your query">+</button></div>' +
+          '<p class="tcols">' + t.columns.map(function (c) {
+            return '<button type="button" class="tcol" data-insert="' + esc(c.name) + '" title="Insert ' + esc(c.name) + ' into your query">' + esc(c.name) + '</button>';
+          }).join(', ') + '</p></li>';
       }).join('') + '</ul></details>';
   }
 
