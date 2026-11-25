@@ -368,6 +368,7 @@
         } else if (e.key === 'Escape') ta.blur();
       });
       ta.addEventListener('focus', function () { SQLRunner.warmUp(); }, { once: true });
+      if (window.SQLAutocomplete) SQLAutocomplete.attach(ta, function () { return wrap._db || 'lesson'; });
       $('.run', wrap).addEventListener('click', function () { runCode(wrap); });
       $('.run', wrap).addEventListener('mouseenter', function () { SQLRunner.warmUp(); }, { once: true });
       $('.reset', wrap).addEventListener('click', function () {
@@ -495,6 +496,7 @@
     buildCode(src);
     var wrap = $('.pg-main .code');
     wrap.classList.add('big');
+    wrap._db = 'playground';
     $('.code-lang', wrap).textContent = 'Playground';
     var ta = $('textarea', wrap);
     ta.addEventListener('input', function () { localStorage.setItem('sqlt.playground', ta.value); });
@@ -550,6 +552,7 @@
         var extra = tables.filter(function (t) { return !used[t.name.toLowerCase()]; });
         if (extra.length) html += schemaGroup('Created by you', 'Tables you added in the playground', extra);
         $('#schema-list').innerHTML = html;
+        if (window.SQLAutocomplete) SQLAutocomplete.setSchema('playground', tables);
         if (previewTable) {
           if (byName[previewTable.toLowerCase()]) showPreview(previewTable, false);
           else { preview.hidden = true; previewTable = null; }
